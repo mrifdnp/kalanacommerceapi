@@ -1,0 +1,35 @@
+# ------------------------------------
+# 1. DEPENDENCIES & ARTIFACTS
+# ------------------------------------
+# Node modules: Wajib dikecualikan
+/node_modules
+
+# pnpm lock file (jika Anda ingin tim lain menggunakan npm/yarn)
+pnpm-lock.yaml 
+
+# Build/Dist directories (jika Anda menggunakan Babel/TypeScript)
+/dist
+/build
+
+# Log files
+npm-debug.log
+yarn-error.log
+.pnpm-debug.log
+
+# ------------------------------------
+# 2. PRISMA & GENERATED FILES
+# ------------------------------------
+# Prisma Client Standard (Biasanya tergenerate di node_modules, tapi ini untuk kepastian)
+# /node_modules/.prisma/client
+
+# Karena Anda menggunakan output kustom:
+/src/generated/prisma
+/generated/prisma
+/prisma/generated/prisma
+
+# ------------------------------------
+# 3. ENVIRONMENT & SECRETS
+# ------------------------------------
+# Wajib dikecualikan
+.env
+.env.*

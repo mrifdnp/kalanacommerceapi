@@ -1,0 +1,213 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              String   @id @default(uuid())
+  
+  name            String
+  email           String   @unique
+  password        String   
+  
+  outlets         Outlet[] 
+  cart            Cart?
+  orders          Order[]
+
+  createdBy       String?
+  deletedAt       DateTime? 
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("user")
+}
+
+// --- 2. MODEL UTAMA: Outlet (Lokasi Penjualan) ---
+model Outlet {
+  id              String   @id @default(uuid())
+  userId          String?  @map("user_id") // Foreign Key ke User
+  
+  name            String
+  provincesId     String?
+  citiesId        String?
+  districtsId     String?
+  long            Decimal? @db.Decimal(10, 7)
+  lat             Decimal? @db.Decimal(10, 7)
+
+  settings        Json?    
+  businessTypeId  String?
+
+  // Relasi
+  user            User? @relation(fields: [userId], references: [id])
+  products        Product[] // Relasi 1:M (Outlet memiliki banyak Product)
+  units           Unit[]    // Unit milik Outlet ini
+orders          Order[]
+  // Kolom Audit
+  createdBy       String?
+  deletedAt       DateTime? 
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("outlet")
+}
+
+// --- 3. MODEL MASTER: Category ---
+model Category {
+  id              String   @id @default(uuid())
+  name            String
+  
+  products        Product[] 
+
+  // Kolom Audit
+  createdBy       String?
+  deletedAt       DateTime? 
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("category")
+}
+
+// --- 4. MODEL MASTER: Unit ---
+model Unit {
+  id              String   @id @default(uuid())
+  outletId        String?
+  name            String
+
+  products        Product[]
+  outlet          Outlet? @relation(fields: [outletId], references: [id])
+
+  // Kolom Audit
+  createdBy       String?
+  deletedAt       DateTime? 
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("unit")
+}
+
+// --- 5. MODEL UTAMA: Product (Master Produk dengan Stok Global) ---
+model Product {
+  id              String   @id @default(uuid())
+  outletId        String?  @map("outlet_id")
+  categoryId      String?  @map("category_id")
+  unitId          String?  @map("unit_id") // ⬅️ Unit ID dipertahankan
+  
+  productCode     String   @unique @map("product_code")
+  name            String
+  description     String?
+  image           String?
+
+  // Stok dan Harga
+  qty             Int      @default(0) // ⬅️ Stok Global/Total Ditambahkan
+  cogs            Int      @default(0)
+  price          Decimal  @default(0) @map("price_1") @db.Decimal(10, 2)
+  discountNominal Decimal? @map("discount_nominal_1") @db.Decimal(10, 2)
+  discountPercent Decimal? @db.Decimal(5, 2) @map("discount_percent_1")
+
+  isPublished     Boolean  @default(true) @map("is_published")
+  tags            String?
+
+  // Material & Batch (Detail ini tetap ada, namun kurang relevan tanpa Stock terpisah)
+  moq             Int?     @default(1)
+  isMaterial      Boolean  @default(false) @map("is_material")
+  materialCategoryId String? @map("material_category_id")
+  expiryDate      DateTime? @map("expiry_date")
+  batch           String?
+  sku             String?
+
+  // Relasi
+  outlet          Outlet? @relation(fields: [outletId], references: [id])
+  category        Category? @relation(fields: [categoryId], references: [id])
+  unit            Unit? @relation(fields: [unitId], references: [id])
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+  // Kolom Audit & Soft Delete
+  createdBy       String?
+  deletedAt       DateTime? 
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("product")
+}
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id") // ⬅️ Terikat 1:1 dengan User
+  
+  // Relasi
+  user      User     @relation(fields: [userId], references: [id])
+  items     CartItem[] // Cart memiliki banyak CartItem
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("cart")
+}
+
+// --- MODEL BARU: CartItem (Item di Keranjang) ---
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String   @map("cart_id")
+  productId String   @map("product_id")
+  quantity  Int      
+  
+  // Relasi
+  cart      Cart     @relation(fields: [cartId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Memastikan satu produk hanya muncul satu kali di satu Cart
+  @@unique([cartId, productId]) 
+  @@map("cart_item")
+}
+model Order {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  outletId        String   @map("outlet_id") // Outlet Penjual
+  
+  orderCode       String   @unique
+  totalAmount     Int      // Subtotal item di Order ini
+  netAmount       Int      // Total setelah diskon (Final amount)
+  
+  status          String   @default("PENDING") 
+  paymentMethod   String?
+
+  // Relasi
+  user            User     @relation(fields: [userId], references: [id])
+  outlet          Outlet   @relation(fields: [outletId], references: [id])
+  items           OrderItem[] // Order memiliki banyak OrderItem
+
+  // Kolom Audit
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("order")
+}
+
+model OrderItem {
+  id              String   @id @default(uuid())
+  orderId         String   @map("order_id")
+  productId       String   @map("product_id")
+  
+  quantity        Int
+  subtotal        Decimal  @db.Decimal(10, 2)
+  
+  // Relasi
+  order           Order    @relation(fields: [orderId], references: [id])
+  product         Product  @relation(fields: [productId], references: [id])
+
+  createdAt       DateTime @default(now())
+  
+  @@map("order_item")
+}

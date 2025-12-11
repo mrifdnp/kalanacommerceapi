@@ -1,0 +1,320 @@
+# file: src/docs/openapi.yaml
+
+openapi: 3.0.0
+info:
+  title: Marketplace API Documentation (Final)
+  version: 1.0.0
+  description: Dokumentasi API untuk sistem Kalana Commerce, mencakup Auth, Produk, Cart, dan Multi-Order.
+servers:
+  - url: http://localhost:3000/api
+    description: Development Server (Lokal)
+
+# ==========================================================
+# DEFINISI JALUR (PATHS)
+# ==========================================================
+paths:
+  # --- 1. USER & AUTH ---
+  /auth/register:
+    post:
+      tags:
+        - 1. User Authentication
+      summary: Registrasi User Baru
+      security: [] # Tidak Butuh Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+      responses:
+        '201':
+          description: User berhasil didaftarkan.
+          
+  /auth/login:
+    post:
+      tags:
+        - 1. User Authentication
+      summary: Login dan Mendapatkan JWT Token
+      security: [] # Tidak Butuh Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Login berhasil, token JWT dikembalikan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JSON Web Token untuk otorisasi.
+
+  # --- 2. PRODUCT & MASTER DATA ---
+  /products:
+    get:
+      tags:
+        - 2. Product & Master Data
+      summary: Mendapatkan Semua Produk (Publik)
+      security: [] # Tidak Butuh Auth
+      responses:
+        '200':
+          description: Daftar produk berhasil diambil.
+  
+  /products/{id}:
+    get:
+      tags:
+        - 2. Product & Master Data
+      summary: Mendapatkan Detail Produk Tunggal
+      security: [] # Tidak Butuh Auth
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Detail produk berhasil diambil.
+
+  /outlets:
+    get:
+      tags:
+        - 2. Product & Master Data
+      summary: Mendapatkan Semua Daftar Outlet Penjual
+      security: [] # Data Publik
+      responses:
+        '200':
+          description: Daftar semua outlet berhasil diambil.
+          
+  /outlets/{id}:
+    get:
+      tags:
+        - 2. Product & Master Data
+      summary: Mendapatkan Detail Outlet Tunggal
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          description: ID dari Outlet.
+      responses:
+        '200':
+          description: Detail outlet berhasil diambil.
+
+  /categories:
+    get:
+      tags:
+        - 2. Product & Master Data
+      summary: Mendapatkan Semua Daftar Kategori Produk
+      security: [] # Data Publik
+      responses:
+        '200':
+          description: Daftar semua kategori berhasil diambil.
+
+  /categories/{id}:
+    get:
+      tags:
+        - 2. Product & Master Data
+      summary: Mendapatkan Detail Kategori Tunggal
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          description: ID dari Kategori.
+      responses:
+        '200':
+          description: Detail kategori berhasil diambil.
+          
+  # ⬅️ END: PENAMBAHAN OUTLETS DAN CATEGORIES
+  # --- 3. CART MANAGEMENT ---
+  /carts:
+    get:
+      tags:
+        - 3. Cart Management
+      summary: Mendapatkan Semua Item Cart User
+      security:
+        - bearerAuth: [] # ⬅️ Butuh Auth JWT
+      responses:
+        '200':
+          description: Daftar item keranjang (termasuk detail produk dan outlet) berhasil diambil.
+
+  /carts/items:
+    post:
+      tags:
+        - 3. Cart Management
+      summary: Menambah Item Baru ke Cart (UPSERT)
+      security:
+        - bearerAuth: [] # ⬅️ Butuh Auth JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartAddItem'
+      responses:
+        '200':
+          description: Produk berhasil ditambahkan/diperbarui di keranjang.
+        '404':
+          description: Produk tidak ditemukan.
+
+  /carts/items/{id}:
+    patch:
+      tags:
+        - 3. Cart Management
+      summary: Mengubah Kuantitas Item Cart (PATCH)
+      security:
+        - bearerAuth: [] # ⬅️ Butuh Auth JWT
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          description: ID dari CartItem yang akan diubah.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity:
+                  type: integer
+                  minimum: 1
+      responses:
+        '200':
+          description: Kuantitas item berhasil diubah.
+        '404':
+          description: Cart Item tidak ditemukan atau bukan milik user.
+          
+    delete:
+      tags:
+        - 3. Cart Management
+      summary: Menghapus Item dari Cart
+      security:
+        - bearerAuth: [] # ⬅️ Butuh Auth JWT
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          description: ID dari CartItem yang akan dihapus.
+      responses:
+        '200':
+          description: Item Cart berhasil dihapus.
+
+  # --- 4. ORDER & TRANSACTION ---
+  /orders:
+    post:
+      tags:
+        - 4. Order & Transaction
+      summary: Checkout dan Pembuatan Multi-Order
+      description: Mengubah CartItem yang dipilih menjadi satu atau lebih Order (satu Order per Outlet).
+      security:
+        - bearerAuth: [] # ⬅️ Butuh Auth JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '201':
+          description: Checkout berhasil, Array of Orders dikembalikan.
+        '400':
+          description: Stok tidak mencukupi atau Cart Item tidak konsisten.
+          
+    get:
+      tags:
+        - 4. Order & Transaction
+      summary: Mendapatkan Riwayat Pesanan User
+      security:
+        - bearerAuth: [] # ⬅️ Butuh Auth JWT
+      responses:
+        '200':
+          description: Array riwayat pesanan berhasil diambil.
+
+  /orders/{id}:
+    get:
+      tags:
+        - 4. Order & Transaction
+      summary: Mendapatkan Detail Pesanan Tunggal
+      security:
+        - bearerAuth: [] # ⬅️ Butuh Auth JWT
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          description: ID dari Order yang ingin dilihat.
+      responses:
+        '200':
+          description: Detail pesanan berhasil diambil.
+        '404':
+          description: Order tidak ditemukan atau bukan milik user.
+
+
+# ==========================================================
+# KOMPONEN (Schemas & Security)
+# ==========================================================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Masukkan token JWT dalam format "Bearer [token]"
+
+  schemas:
+    UserRegister:
+      type: object
+      required: [name, email, password]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 6 }
+    
+    UserLogin:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 6 }
+          
+    CartAddItem:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: string
+          format: uuid
+          description: ID produk yang ingin ditambahkan.
+        quantity:
+          type: integer
+          minimum: 1
+          description: Jumlah yang ingin ditambahkan (akan di-increment).
+          
+    CheckoutRequest:
+      type: object
+      required: [paymentMethod, cartItemIds]
+      properties:
+        paymentMethod:
+          type: string
+          description: Metode pembayaran yang dipilih (e.g., TRANSFER_BANK, GOPAY).
+        discountAmount:
+          type: integer
+          default: 0
+          description: Jumlah diskon yang diterapkan (Opsional).
+        cartItemIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+          description: Daftar ID CartItem yang dipilih user untuk di-checkout.
