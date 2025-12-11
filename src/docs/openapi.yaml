@@ -6,7 +6,7 @@ info:
   version: 1.0.0
   description: Dokumentasi API untuk sistem Kalana Commerce, mencakup Auth, Produk, Cart, dan Multi-Order.
 servers:
-  - url: http://localhost:3000/api
+  - url: http://202.155.14.40/api
     description: Development Server (Lokal)
 
 # ==========================================================
