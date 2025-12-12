@@ -17,6 +17,27 @@ const _routes: Array<[string, Router]> = [
 ]
 export const routes = (app: Application) => {
 
+
+   app.get('/', (req, res) => {
+        // Gunakan \n untuk baris baru (di terminal atau browser dengan Content-Type: text/plain)
+        const statusText = `
+Kalana Commerce API V3 STATUS
+---------------------------------------
+STATUS: OK
+LAST UPDATE: 2025-12-12
+DOKUMENTASI: /docs
+
+CHANGELOG TERAKHIR:
+1. Model User: Menambahkan field 'phoneNumber' (Wajib diisi saat Register).
+2. Fix: Menyelesaikan konflik Foreign Key UUID/TEXT di seluruh database.
+3. Cleanup: Menghapus semua riwayat migrasi lama yang korup.
+---------------------------------------
+`;
+        // Kirim sebagai teks biasa
+        res.setHeader('Content-Type', 'text/plain');
+        res.status(200).send(statusText);
+    });
+
     app.get('/health', (req, res) => {
         res.status(200).send({ status: 'UP', message: 'API is healthy' });
     });
