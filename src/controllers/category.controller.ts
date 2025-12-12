@@ -9,7 +9,6 @@ type JoiError = any;
 interface CategoryInput { name: string, createdBy?: string; }
 type ValidationResult<T> = { error: JoiError | undefined; value: T | undefined; };
 
-
 // --- CREATE CATEGORY (POST) ---
 export const createCategory = async (req: Request, res: Response) => {
     const { error, value } = createCategoryValidation(req.body) as ValidationResult<CategoryInput>;
@@ -39,11 +38,45 @@ export const getCategories = async (req: Request, res: Response) => {
         const allCategories = await prisma.category.findMany({
             where: { deletedAt: null },
         });
-        
+
         logger.info(`Found ${allCategories.length} categories.`);
         return res.status(200).send({ status: true, statusCode: 200, message: 'Success get all categories', data: allCategories });
     } catch (e: any) {
         logger.error({ error: e.message }, 'ERR: category - getAll');
+        return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.' });
+    }
+};
+
+export const getCategoryById = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (!id) {
+        return res.status(400).send({ status: false, statusCode: 400, message: 'Category ID is required.', data: null });
+    }
+    try {
+        const category = await prisma.category.findUnique({
+            where: { id: id, deletedAt: null },
+            // Anda bisa menyertakan relasi products di sini jika diperlukan: include: { products: true }
+        });
+
+        if (!category) {
+            logger.warn({ categoryId: id }, 'Category not found or deleted.');
+            return res.status(404).send({
+                status: false,
+                statusCode: 404,
+                message: `Category with ID ${id} not found.`,
+                data: null
+            });
+        }
+
+        logger.info({ categoryId: id }, 'Success get single category.');
+        return res.status(200).send({ status: true, statusCode: 200, message: 'Success get category by ID', data: category });
+
+    } catch (e: any) {
+        // Menangani error jika ID bukan format UUID yang valid
+        if (e.code === 'P2023') {
+            return res.status(400).send({ status: false, statusCode: 400, message: 'Invalid ID format.' });
+        }
+        logger.error({ error: e.message, id }, 'ERR: category - getById');
         return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.' });
     }
 };

@@ -46,3 +46,39 @@ export const getUnits = async (req: Request, res: Response) => {
         return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.' });
     }
 };
+export const getUnitById = async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    // Menangani error jika ID tidak ada atau undefined
+    if (!id) {
+        return res.status(400).send({ status: false, statusCode: 400, message: 'Unit ID is required.', data: null });
+    }
+
+    try {
+        // Menggunakan findFirst untuk kriteria non-unik (deletedAt)
+        const unit = await prisma.unit.findFirst({
+            where: { id: id, deletedAt: null },
+            include: { outlet: { select: { name: true } } }
+        });
+
+        if (!unit) {
+            logger.warn({ unitId: id }, 'Unit not found or deleted.');
+            return res.status(404).send({ 
+                status: false, 
+                statusCode: 404, 
+                message: `Unit with ID ${id} not found.`,
+                data: null
+            });
+        }
+        
+        logger.info({ unitId: id }, 'Success get single unit.');
+        return res.status(200).send({ status: true, statusCode: 200, message: 'Success get unit by ID', data: unit });
+
+    } catch (e: any) {
+        if (e.code === 'P2023') { 
+             return res.status(400).send({ status: false, statusCode: 400, message: 'Invalid ID format.' });
+        }
+        logger.error({ error: e.message, id }, 'ERR: unit - getById');
+        return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.' });
+    }
+};

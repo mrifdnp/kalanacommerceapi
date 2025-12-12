@@ -7,7 +7,10 @@ info:
   description: Dokumentasi API untuk sistem Kalana Commerce, mencakup Auth, Produk, Cart, dan Multi-Order.
 servers:
   - url: http://202.155.14.40/api
+    description: Production
+  - url: http://localhost:3000/api
     description: Development Server (Lokal)
+  
 
 # ==========================================================
 # DEFINISI JALUR (PATHS)
@@ -131,6 +134,32 @@ paths:
       responses:
         '200':
           description: Detail kategori berhasil diambil.
+
+  /units:
+    get:
+      tags:
+        - 2. Product & Master Data
+      summary: Mendapatkan Semua Daftar Units
+      security: [] # Data Publik
+      responses:
+        '200':
+          description: Daftar semua unit berhasil diambil.
+
+  /units/{id}:
+    get:
+      tags:
+        - 2. Product & Master Data
+      summary: Mendapatkan Detail Unit Tunggal
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+          description: ID dari Unit.
+      responses:
+        '200':
+          description: Detail Unit berhasil diambil.
           
   # ⬅️ END: PENAMBAHAN OUTLETS DAN CATEGORIES
   # --- 3. CART MANAGEMENT ---

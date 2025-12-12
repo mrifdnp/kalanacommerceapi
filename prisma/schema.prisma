@@ -109,11 +109,11 @@ model Product {
 
   // Stok dan Harga
   qty             Int      @default(0) // ⬅️ Stok Global/Total Ditambahkan
-  cogs            Int      @default(0)
+  cogs Decimal @default(0) @db.Decimal(10, 2)
   price           Decimal  @default(0) @map("price_1") @db.Decimal(10, 2)
   discountNominal Decimal? @map("discount_nominal_1") @db.Decimal(10, 2)
   discountPercent Decimal? @map("discount_percent_1") @db.Decimal(5, 2)
-
+  freshnessLevel Int @default(100) @map("freshness_level")
   isPublished Boolean @default(true) @map("is_published")
   tags        String?
 
