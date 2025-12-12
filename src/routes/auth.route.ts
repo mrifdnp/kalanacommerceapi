@@ -3,13 +3,12 @@
 
 import express from 'express';
 import { loginUser, registerUser } from '../controllers/user.controller.js'; 
+import { authLimiter } from '../server.js'; 
 
 const authRouter = express.Router();
 
 // Route untuk pendaftaran (Register)
-authRouter.post('/register', registerUser);
-// Tambahkan userRouter.post('/login', loginUser); jika sudah siap
-
-authRouter.post('/login', loginUser);
+authRouter.post('/register', authLimiter, registerUser); // ⬅️ DITAMBAHKAN DI SINI
+authRouter.post('/login', authLimiter, loginUser);
 
 export { authRouter };
