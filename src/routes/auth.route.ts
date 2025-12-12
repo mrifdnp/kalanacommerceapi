@@ -3,7 +3,7 @@
 
 import express from 'express';
 import { loginUser, registerUser } from '../controllers/user.controller.js'; 
-import { authLimiter } from '../server.js'; 
+import { authLimiter } from '../middlewares/rateLimiter.js';
 
 const authRouter = express.Router();
 
