@@ -9,6 +9,7 @@ interface RegisterInput {
     name: string;
     email: string;
     password: string;
+    phoneNumber: string;
 }
 
 interface LoginInput {
@@ -43,11 +44,13 @@ export const registerUser = async (req: Request, res: Response) => {
                 name: value.name,
                 email: value.email,
                 password: hashedPassword,
+                phoneNumber: value.phoneNumber,
             },
             select: {
                 id: true,
                 name: true,
                 email: true,
+                phoneNumber: true,
                 createdAt: true,
             } 
         });
@@ -64,10 +67,22 @@ export const registerUser = async (req: Request, res: Response) => {
         logger.error({ error: e.message, code: e.code, body: req.body }, 'ERR: user - register - Database Error');
         
         if (e.code === 'P2002') { 
+            const target = e.meta?.target;
+            let message = 'Email is already registered.';
+
+            if (Array.isArray(target)) {
+                if (target.includes('email')) {
+                    message = 'Email is already registered.';
+                } else if (target.includes('phone_number')) {
+                    message = 'Phone number is already registered.';
+                }
+            } else if (target === 'phone_number') {
+                message = 'Phone number is already registered.';
+            }
             return res.status(409).send({
                 status: false,
                 statusCode: 409,
-                message: 'Email is already registered.',
+                message,
                 data: {}
             });
         }

@@ -1,4 +1,4 @@
-    import dotenv from "dotenv";
+import dotenv from "dotenv";
 import bodyParser from 'body-parser';
 dotenv.config();
 import app from "./app.js";
