@@ -17,6 +17,10 @@ interface LoginInput {
     password: string;
 }
 
+interface AuthRequest extends Request {
+    userId?: string; 
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key'; 
 const TOKEN_EXPIRES_IN = '1d';
 
@@ -153,5 +157,59 @@ export const loginUser = async (req: Request, res: Response) => {
     } catch (e: any) {
         logger.error({ error: e.message, body: req.body }, 'ERR: user - login - General Error');
         return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.', data: {} });
+    }
+};
+
+export const getMe = async (req: AuthRequest, res: Response) => {
+    // 1. Ambil userId yang dilampirkan oleh authenticateToken (dari payload JWT)
+    const userId = req.userId; 
+
+    // Safety check (seharusnya tidak tercapai jika middleware sudah bekerja)
+    if (!userId) {
+        return res.status(401).send({ status: false, statusCode: 401, message: 'Unauthorized.' });
+    }
+
+    try {
+        // 2. Query ke database menggunakan userId
+        const user = await prisma.user.findUnique({
+            where: { id: userId, deletedAt: null }, // Mencari user yang aktif (belum soft delete)
+            
+            // 3. BEST PRACTICE: Gunakan 'select' eksplisit untuk Keamanan dan Efisiensi Payload
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phoneNumber: true,
+                balance: true, // Field Saldo (jika sudah di-migrate)
+                createdAt: true,
+                updatedAt: true,
+                
+                // Opsional: Hanya ambil Alamat Default (efisiensi data)
+                addresses: {
+                    where: { 
+                        isDefault: true, 
+                        // Jika Anda punya deletedAt di UserAddress: deletedAt: null 
+                    }, 
+                    take: 1 // Hanya ambil 1 (yang default)
+                },
+            }
+        });
+
+        if (!user) {
+            logger.warn({ userId }, 'User not found in DB for /me endpoint.');
+            return res.status(404).send({ status: false, statusCode: 404, message: 'User profile not found.' });
+        }
+
+        logger.info({ userId }, 'Success getting user profile (/me).');
+        return res.status(200).send({ 
+            status: true, 
+            statusCode: 200, 
+            message: 'Success get user profile', 
+            data: user 
+        });
+
+    } catch (e: any) {
+        logger.error({ error: e.message, userId }, 'ERR: user - getMe');
+        return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.' });
     }
 };

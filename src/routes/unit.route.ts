@@ -1,10 +1,10 @@
 import express from 'express';
 import { createUnit, getUnitById, getUnits } from '../controllers/unit.controller.js'; 
-import { verifyToken } from '../middlewares/auth.middleware.js';
+import { authenticateToken } from '../middlewares/auth.middleware.js';
 
 const unitRouter = express.Router();
 
-unitRouter.post('/', verifyToken, createUnit);
+unitRouter.post('/', authenticateToken, createUnit);
 unitRouter.get('/', getUnits);
 unitRouter.get('/:id', getUnitById)
 

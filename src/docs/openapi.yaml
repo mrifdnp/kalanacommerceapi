@@ -57,6 +57,110 @@ paths:
                     type: string
                     description: JSON Web Token untuk otorisasi.
 
+  /me:
+    get:
+      tags:
+        - 1. User Authentication
+      summary: Mendapatkan Profil User yang sedang Login (Requires JWT)
+      security:
+        - bearerAuth: [] # ⬅️ Butuh Auth JWT
+      responses:
+        '200':
+          description: Profil user berhasil diambil, termasuk alamat default.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Unauthorized (Token missing/invalid)
+
+  /addresses:
+    get:
+      tags:
+        - User Account & Addresses
+      summary: Mendapatkan SEMUA Alamat Milik User yang Login
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Daftar semua alamat user berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AddressDetail'
+
+    post:
+      tags:
+        - 5. User Account & Addresses
+      summary: Menambahkan Alamat Baru
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressInput'
+      responses:
+        '201':
+          description: Alamat berhasil dibuat.
+        '422':
+          description: Validasi Gagal.
+
+  /addresses/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+        description: ID dari Alamat Pengguna.
+
+    get:
+      tags:
+        - 5. User Account & Addresses
+      summary: Mendapatkan Detail Alamat Tunggal
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Detail alamat berhasil diambil.
+        '404':
+          description: Alamat tidak ditemukan atau bukan milik user.
+
+    put:
+      tags:
+        - 5. User Account & Addresses
+      summary: Memperbarui Alamat
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressUpdateInput'
+      responses:
+        '200':
+          description: Alamat berhasil diperbarui.
+        '404':
+          description: Alamat tidak ditemukan.
+
+    delete:
+      tags:
+        - 5. User Account & Addresses
+      summary: Menghapus Alamat (Soft Delete)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Alamat berhasil dihapus secara lunak.
+        '404':
+          description: Alamat tidak ditemukan.
+
   # --- 2. PRODUCT & MASTER DATA ---
   /products:
     get:
@@ -315,6 +419,85 @@ components:
       properties:
         email: { type: string, format: email }
         password: { type: string, minLength: 6 }
+
+    UserResponse:
+      type: object
+      description: Skema data user yang dikembalikan oleh endpoint /me.
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phoneNumber:
+          type: string
+        balance:
+          type: number
+          format: float
+        createdAt:
+          type: string
+          format: date-time
+        # Alamat Default yang disertakan (max 1 item)
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/AddressDetail'
+          description: Alamat default pengguna (hanya 1 item jika ada).
+
+    AddressDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        label: { type: string, example: "Rumah Utama" }
+        recipientName: { type: string, example: "Nurhayati" }
+        phoneNumber: { type: string, example: "08901234567" }
+        street: { type: string, example: "Jl. Raya Mawar No. 5" }
+        postalCode: { type: string, example: "55123" }
+        provincesId: { type: string, example: "ID-JI" }
+        citiesId: { type: string, example: "ID-JI-SBY" }
+        isDefault: { type: boolean, example: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        deletedAt: { type: string, format: date-time, nullable: true }
+
+    AddressInput:
+      type: object
+      required: [label, recipientName, phoneNumber, street, postalCode, provincesId, citiesId, districtsId]
+      properties:
+        label: { type: string, example: "Kantor Cabang" }
+        recipientName: { type: string, example: "Satria Tama" }
+        phoneNumber: { type: string, example: "08901234567" }
+        street: { type: string, example: "Gedung Sudirman Lt. 10" }
+        postalCode: { type: string, example: "10220" }
+        provincesId: { type: string, example: "ID-JK" }
+        citiesId: { type: string, example: "ID-JK-JKT" }
+        districtsId: { type: string, example: "ID-JK-JKTS" }
+        isDefault: { type: boolean, example: false }
+        long: { type: number, format: float }
+        lat: { type: number, format: float }
+
+    AddressUpdateInput:
+      type: object
+      properties:
+        label: { type: string, example: "Home Baru" }
+        recipientName: { type: string }
+        phoneNumber: { type: string }
+        street: { type: string }
+        postalCode: { type: string }
+        provincesId: { type: string }
+        citiesId: { type: string }
+        districtsId: { type: string }
+        isDefault: { type: boolean }
+        long: { type: number, format: float }
+        lat: { type: number, format: float }
           
     CartAddItem:
       type: object

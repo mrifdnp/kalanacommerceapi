@@ -1,12 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger.js';
 
 interface JwtPayload {
-    id: string;
+    id: string; 
     email: string;
     name: string;
+}
+export interface AuthRequest extends Request {
+    userId?: string; 
+    userPayload?: JwtPayload; // Opsional: untuk menyimpan seluruh payload
 }
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'fallback_secret_key';
@@ -14,7 +17,10 @@ const JWT_SECRET = process.env.JWT_SECRET ?? 'fallback_secret_key';
 /**
  * Middleware untuk memverifikasi token JWT.
  */
-export const verifyToken = (req: Request, res: Response, next: NextFunction) => {
+export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
+    // Cast req ke tipe yang diperluas untuk kemudahan penggunaan
+    const authReq = req as AuthRequest;
+
     if (!JWT_SECRET) {
         logger.error('FATAL: JWT_SECRET environment variable is not set!');
         return res.status(500).send({
@@ -24,10 +30,10 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
         });
     }
 
-    const authHeader = req.headers.authorization;
+    const authHeader = authReq.headers.authorization;
 
     if (!authHeader?.startsWith('Bearer ')) {
-        logger.warn({ ip: req.ip }, 'ERR: Auth - Token missing or invalid format');
+        logger.warn({ ip: authReq.ip }, 'ERR: Auth - Token missing or invalid format');
         return res.status(401).send({
             status: false,
             statusCode: 401,
@@ -36,14 +42,15 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction) => 
         });
     }
 
-    // after startsWith('Bearer '), token guaranteed exists
-    const token = authHeader.split(' ')[1]!; // <-- Non-null assertion FIX
+    // Mengambil token: logic Anda sudah benar
+    const token = authHeader.split(' ')[1]!; 
 
     try {
-        // TS now knows JWT_SECRET is always string
         const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
 
-        (req as any).user = decoded;
+        // ⬅️ LANGKAH KRUSIAL: Menyimpan ID dan Payload ke objek Request
+        authReq.userId = decoded.id; 
+        authReq.userPayload = decoded; 
 
         logger.info({ userId: decoded.id }, 'Auth success');
         next();

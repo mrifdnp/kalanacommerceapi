@@ -20,6 +20,8 @@ model User {
   email    String @unique
   password String
   phoneNumber String?   @unique @map("phone_number")
+  balance Decimal @default(0.00) @db.Decimal(12, 2)
+  addresses UserAddress[]
   outlets Outlet[]
   cart    Cart?
   orders  Order[]
@@ -30,6 +32,36 @@ model User {
   updatedAt DateTime  @updatedAt
 
   @@map("user")
+}
+model UserAddress {
+  id String @id @default(uuid())
+  userId String @map("user_id") @db.Uuid // Kunci asing ke User
+
+  // Konten Alamat
+  label String // Contoh: "Rumah", "Kantor", "Ibu"
+  recipientName String @map("recipient_name")
+  phoneNumber String @map("phone_number") // Nomor kontak di alamat tersebut
+  street String
+  postalCode String @map("postal_code")
+  
+  // Data Lokasi
+  provincesId String
+  citiesId String
+  districtsId String
+  deletedAt   DateTime?
+  // Lokasi GPS (opsional, tapi berguna)
+  long Decimal? @db.Decimal(10, 7)
+  lat Decimal? @db.Decimal(10, 7)
+
+  isDefault Boolean @default(false) @map("is_default") // Apakah ini alamat utama?
+
+  // Relasi
+  user User @relation(fields: [userId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("user_address")
 }
 
 // --- 2. MODEL UTAMA: Outlet (Lokasi Penjualan) ---

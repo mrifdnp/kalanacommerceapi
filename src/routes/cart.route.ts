@@ -1,17 +1,17 @@
 import express from 'express';
-import { verifyToken } from '../middlewares/auth.middleware.js'; 
+import { authenticateToken } from '../middlewares/auth.middleware.js'; 
 import { addItemToCart, getCart, removeCartItem, updateCartItemQuantity } from '../controllers/cart.controller.js'; 
 
 const cartRouter = express.Router();
 
-cartRouter.post('/items', verifyToken, addItemToCart); 
+cartRouter.post('/items', authenticateToken, addItemToCart); 
 
-cartRouter.get('/', verifyToken, getCart); 
+cartRouter.get('/', authenticateToken, getCart); 
 
-cartRouter.patch('/items/:id', verifyToken, updateCartItemQuantity); 
+cartRouter.patch('/items/:id', authenticateToken, updateCartItemQuantity); 
 
 
-cartRouter.delete('/items/:id', verifyToken, removeCartItem);
+cartRouter.delete('/items/:id', authenticateToken, removeCartItem);
 
 
 export { cartRouter };
