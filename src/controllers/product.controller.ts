@@ -67,7 +67,7 @@ export const getProducts = async (req: Request, res: Response) => {
 export const getProduct = async (req: Request, res: Response) => {
 const { id } = req.params;
     if (!id) {
-        return res.status(400).send({ 
+        return res.status(400).send({  
             status: false, 
             statusCode: 400, 
             message: 'Product ID is missing from the request path.', 

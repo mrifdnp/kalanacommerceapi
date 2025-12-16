@@ -7,6 +7,7 @@ import { unitRouter } from "./unit.route.js";
 import { cartRouter } from "./cart.route.js";
 import profileRouter from "./profile.route.js";
 import { addressRouter } from "./address.routes.js";
+import { chatbotRouter } from "./chatbot.route.js";
 
 const _routes: Array<[string, Router]> = [
     ['/api/products', ProductRouter],
@@ -16,7 +17,8 @@ const _routes: Array<[string, Router]> = [
     ['/api/units', unitRouter],
     ['/api/carts', cartRouter],
     ['/api/me', profileRouter],
-    ['/api/addresses', addressRouter]
+    ['/api/addresses', addressRouter],
+    ['/api/chatbot', chatbotRouter],
 ]
 export const routes = (app: Application) => {
 

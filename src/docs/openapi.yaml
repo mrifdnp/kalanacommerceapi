@@ -56,6 +56,90 @@ paths:
                   token:
                     type: string
                     description: JSON Web Token untuk otorisasi.
+            
+  /auth/forgot-password:
+    post:
+      summary: Request OTP Reset Password
+      tags:
+        - 1. User Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: danirifqi79@gmail.com
+      responses:
+        '200':
+          description: Kode OTP berhasil dikirim
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Kode OTP berhasil dikirim ke email.
+        '500':
+          description: Kesalahan Server (Gagal kirim email)
+
+  /auth/reset-password:
+    post:
+      summary: Reset Password menggunakan OTP
+      tags:
+        - 1. User Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - otp
+                - newPassword
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: danirifqi79@gmail.com
+                otp:
+                  type: string
+                  description: Kode 6 digit dari email
+                  example: "123456"
+                newPassword:
+                  type: string
+                  format: password
+                  example: passwordBaruGanteng123
+      responses:
+        '200':
+          description: Password berhasil diubah
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Password berhasil diperbarui!
+        '400':
+          description: OTP salah atau sudah kadaluwarsa
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Kode OTP salah atau sudah kedaluwarsa.
+        '500':
+          description: Internal Server Error
 
   /me:
     get:
@@ -77,7 +161,7 @@ paths:
   /addresses:
     get:
       tags:
-        - User Account & Addresses
+        - 2. User Account & Addresses
       summary: Mendapatkan SEMUA Alamat Milik User yang Login
       security:
         - bearerAuth: []
@@ -93,7 +177,7 @@ paths:
 
     post:
       tags:
-        - 5. User Account & Addresses
+        - 2. User Account & Addresses
       summary: Menambahkan Alamat Baru
       security:
         - bearerAuth: []
@@ -121,7 +205,7 @@ paths:
 
     get:
       tags:
-        - 5. User Account & Addresses
+        - 2. User Account & Addresses
       summary: Mendapatkan Detail Alamat Tunggal
       security:
         - bearerAuth: []
@@ -133,7 +217,7 @@ paths:
 
     put:
       tags:
-        - 5. User Account & Addresses
+        - 2. User Account & Addresses
       summary: Memperbarui Alamat
       security:
         - bearerAuth: []
@@ -151,7 +235,7 @@ paths:
 
     delete:
       tags:
-        - 5. User Account & Addresses
+        - 2. User Account & Addresses
       summary: Menghapus Alamat (Soft Delete)
       security:
         - bearerAuth: []
@@ -161,11 +245,11 @@ paths:
         '404':
           description: Alamat tidak ditemukan.
 
-  # --- 2. PRODUCT & MASTER DATA ---
+  # ---  3. Product & Master Data ---
   /products:
     get:
       tags:
-        - 2. Product & Master Data
+        -  3. Product & Master Data
       summary: Mendapatkan Semua Produk (Publik)
       security: [] # Tidak Butuh Auth
       responses:
@@ -175,7 +259,7 @@ paths:
   /products/{id}:
     get:
       tags:
-        - 2. Product & Master Data
+        -  3. Product & Master Data
       summary: Mendapatkan Detail Produk Tunggal
       security: [] # Tidak Butuh Auth
       parameters:
@@ -190,7 +274,7 @@ paths:
   /outlets:
     get:
       tags:
-        - 2. Product & Master Data
+        -  3. Product & Master Data
       summary: Mendapatkan Semua Daftar Outlet Penjual
       security: [] # Data Publik
       responses:
@@ -200,7 +284,7 @@ paths:
   /outlets/{id}:
     get:
       tags:
-        - 2. Product & Master Data
+        -  3. Product & Master Data
       summary: Mendapatkan Detail Outlet Tunggal
       security: []
       parameters:
@@ -216,7 +300,7 @@ paths:
   /categories:
     get:
       tags:
-        - 2. Product & Master Data
+        -  3. Product & Master Data
       summary: Mendapatkan Semua Daftar Kategori Produk
       security: [] # Data Publik
       responses:
@@ -226,7 +310,7 @@ paths:
   /categories/{id}:
     get:
       tags:
-        - 2. Product & Master Data
+        -  3. Product & Master Data
       summary: Mendapatkan Detail Kategori Tunggal
       security: []
       parameters:
@@ -242,7 +326,7 @@ paths:
   /units:
     get:
       tags:
-        - 2. Product & Master Data
+        -  3. Product & Master Data
       summary: Mendapatkan Semua Daftar Units
       security: [] # Data Publik
       responses:
@@ -252,7 +336,7 @@ paths:
   /units/{id}:
     get:
       tags:
-        - 2. Product & Master Data
+        -  3. Product & Master Data
       summary: Mendapatkan Detail Unit Tunggal
       security: []
       parameters:
@@ -266,11 +350,11 @@ paths:
           description: Detail Unit berhasil diambil.
           
   # ⬅️ END: PENAMBAHAN OUTLETS DAN CATEGORIES
-  # --- 3. CART MANAGEMENT ---
+  # --- 4. Cart Management ---
   /carts:
     get:
       tags:
-        - 3. Cart Management
+        - 4. Cart Management
       summary: Mendapatkan Semua Item Cart User
       security:
         - bearerAuth: [] # ⬅️ Butuh Auth JWT
@@ -281,7 +365,7 @@ paths:
   /carts/items:
     post:
       tags:
-        - 3. Cart Management
+        - 4. Cart Management
       summary: Menambah Item Baru ke Cart (UPSERT)
       security:
         - bearerAuth: [] # ⬅️ Butuh Auth JWT
@@ -300,7 +384,7 @@ paths:
   /carts/items/{id}:
     patch:
       tags:
-        - 3. Cart Management
+        - 4. Cart Management
       summary: Mengubah Kuantitas Item Cart (PATCH)
       security:
         - bearerAuth: [] # ⬅️ Butuh Auth JWT
@@ -328,7 +412,7 @@ paths:
           
     delete:
       tags:
-        - 3. Cart Management
+        - 4. Cart Management
       summary: Menghapus Item dari Cart
       security:
         - bearerAuth: [] # ⬅️ Butuh Auth JWT
@@ -342,11 +426,11 @@ paths:
         '200':
           description: Item Cart berhasil dihapus.
 
-  # --- 4. ORDER & TRANSACTION ---
+  # --- 5. Order & Transaction ---
   /orders:
     post:
       tags:
-        - 4. Order & Transaction
+        - 5. Order & Transaction
       summary: Checkout dan Pembuatan Multi-Order
       description: Mengubah CartItem yang dipilih menjadi satu atau lebih Order (satu Order per Outlet).
       security:
@@ -365,7 +449,7 @@ paths:
           
     get:
       tags:
-        - 4. Order & Transaction
+        - 5. Order & Transaction
       summary: Mendapatkan Riwayat Pesanan User
       security:
         - bearerAuth: [] # ⬅️ Butuh Auth JWT
@@ -376,7 +460,7 @@ paths:
   /orders/{id}:
     get:
       tags:
-        - 4. Order & Transaction
+        - 5. Order & Transaction
       summary: Mendapatkan Detail Pesanan Tunggal
       security:
         - bearerAuth: [] # ⬅️ Butuh Auth JWT
@@ -412,6 +496,7 @@ components:
         name: { type: string }
         email: { type: string, format: email }
         password: { type: string, minLength: 6 }
+        phoneNumber: { type: string, minLength: 10 }
     
     UserLogin:
       type: object
