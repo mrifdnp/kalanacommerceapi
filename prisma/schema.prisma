@@ -25,7 +25,8 @@ model User {
   outlets Outlet[]
   cart    Cart?
   orders  Order[]
-
+  image       String?
+  
   createdBy String?
   deletedAt DateTime?
   createdAt DateTime  @default(now())

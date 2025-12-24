@@ -158,6 +158,27 @@ paths:
         '401':
           description: Unauthorized (Token missing/invalid)
 
+  /auth/update-photo:
+    put:
+      tags:
+        - 1. User Authentication
+      summary: Update Foto Profil User
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data: # ⬅️ WAJIB pakai ini untuk upload file
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary # ⬅️ Ini cara OpenAPI bilang "Ini adalah File"
+      responses:
+        '200':
+          description: Foto berhasil diperbarui.
+
   /addresses:
     get:
       tags:
@@ -255,6 +276,31 @@ paths:
       responses:
         '200':
           description: Daftar produk berhasil diambil.
+    
+    post:
+      tags:
+        - 3. Product & Master Data
+      summary: Tambah Produk Baru dengan Gambar
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                price: { type: number }
+                productCode: { type: string }
+                outletId: { type: string, format: uuid }
+                categoryId: { type: string, format: uuid }
+                unitId: { type: string, format: uuid }
+                cogs: { type: number }
+                image: { type: string, format: binary } # ⬅️ Field file gambar
+      responses:
+        '201':
+          description: Produk berhasil dibuat.
   
   /products/{id}:
     get:
@@ -270,7 +316,7 @@ paths:
       responses:
         '200':
           description: Detail produk berhasil diambil.
-
+          
   /outlets:
     get:
       tags:
@@ -507,21 +553,13 @@ components:
 
     UserResponse:
       type: object
-      description: Skema data user yang dikembalikan oleh endpoint /me.
       properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        email:
-          type: string
-          format: email
-        phoneNumber:
-          type: string
-        balance:
-          type: number
-          format: float
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        image: { type: string, nullable: true, example: "https://res.cloudinary.com/..." } 
+        phoneNumber: { type: string }
+        balance: { type: number }
         createdAt:
           type: string
           format: date-time

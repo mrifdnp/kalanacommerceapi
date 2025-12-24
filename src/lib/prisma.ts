@@ -10,10 +10,10 @@ const prisma = new PrismaClient({ adapter })
 
 prisma.$connect()
   .then(() => {
-    logger.info('🔥 Prisma connected to database successfully')
+    logger.info(' Prisma connected to database successfully')
   })
   .catch((err) => {
-    logger.error({ err }, '❌ Failed to connect Prisma to database')
+    logger.error({ err }, ' Failed to connect Prisma to database')
   })
   
 export { prisma }

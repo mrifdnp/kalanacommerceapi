@@ -5,14 +5,16 @@ import { Request, Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { prisma } from '../lib/prisma.js';
 import { createProductValidation, updateProductValidation } from '../validations/product.validation.js';
-import { ProductInput, ProductUpdateInput } from '../interfaces/product.interface.js'; 
+import { ProductInput, ProductUpdateInput } from '../interfaces/product.interface.js';
 
 // Tipe untuk hasil validasi (Diambil dari validation.ts)
-type JoiError = any; 
+type JoiError = any;
 type ValidationResult<T> = { error: JoiError | undefined; value: T | undefined; };
 
 // --- 1. CREATE PRODUCT (POST) ---
 export const createProduct = async (req: Request, res: Response) => {
+    // 1. Validasi input teks menggunakan Joi
+    // Pastikan di Joi, field 'image' sudah .optional() dan tidak kaku .uri()
     const { error, value } = createProductValidation(req.body) as ValidationResult<ProductInput>;
 
     if (error || !value) {
@@ -26,8 +28,14 @@ export const createProduct = async (req: Request, res: Response) => {
     }
 
     try {
+
+        const imageUrl = req.file ? req.file.path : (value.image || null);
+
         const newProduct = await prisma.product.create({
-            data: value,
+            data: {
+                ...value,
+                image: imageUrl,
+            },
         });
 
         logger.info({ productId: newProduct.id }, 'Success add new product');
@@ -40,7 +48,7 @@ export const createProduct = async (req: Request, res: Response) => {
 
     } catch (e: any) {
         logger.error({ error: e.message, code: e.code, body: req.body }, 'ERR: product - create - Database Error');
-        if (e.code === 'P2002') { 
+        if (e.code === 'P2002') {
             return res.status(409).send({ status: false, statusCode: 409, message: 'Product code already exists.', data: {} });
         }
         return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.', data: {} });
@@ -65,21 +73,21 @@ export const getProducts = async (req: Request, res: Response) => {
 
 // --- 3. READ SINGLE PRODUCT (GET /:id) ---
 export const getProduct = async (req: Request, res: Response) => {
-const { id } = req.params;
+    const { id } = req.params;
     if (!id) {
-        return res.status(400).send({  
-            status: false, 
-            statusCode: 400, 
-            message: 'Product ID is missing from the request path.', 
-            data: {} 
+        return res.status(400).send({
+            status: false,
+            statusCode: 400,
+            message: 'Product ID is missing from the request path.',
+            data: {}
         });
     }
 
     try {
-       const product = await prisma.product.findFirst({ // ⬅️ UBAH KE findFirst
-            where: { 
-                id: id, 
-                deletedAt: null 
+        const product = await prisma.product.findFirst({ // ⬅️ UBAH KE findFirst
+            where: {
+                id: id,
+                deletedAt: null
             },
             include: { outlet: true, category: true, unit: true },
         });
@@ -101,11 +109,11 @@ const { id } = req.params;
 export const updateProduct = async (req: Request, res: Response) => {
     const { id } = req.params;
     if (!id) {
-        return res.status(400).send({ 
-            status: false, 
-            statusCode: 400, 
-            message: 'Product ID is missing from the request path.', 
-            data: {} 
+        return res.status(400).send({
+            status: false,
+            statusCode: 400,
+            message: 'Product ID is missing from the request path.',
+            data: {}
         });
     }
     const { error, value } = updateProductValidation(req.body) as ValidationResult<ProductUpdateInput>;
@@ -114,7 +122,7 @@ export const updateProduct = async (req: Request, res: Response) => {
         logger.error({ validationError: error?.details[0] }, 'ERR: product - update - Input validation failed');
         return res.status(422).send({ status: false, statusCode: 422, message: error?.details[0]?.message, data: {} });
     }
-    
+
     if (Object.keys(value).length === 0) {
         return res.status(400).send({ status: false, statusCode: 400, message: 'No fields provided for update.', data: {} });
     }
@@ -130,8 +138,8 @@ export const updateProduct = async (req: Request, res: Response) => {
 
     } catch (e: any) {
         logger.error({ error: e.message, id: id, body: req.body }, 'ERR: product - update - Database Error');
-        if (e.code === 'P2025') { 
-             return res.status(404).send({ status: false, statusCode: 404, message: 'Product not found for update.', data: {} });
+        if (e.code === 'P2025') {
+            return res.status(404).send({ status: false, statusCode: 404, message: 'Product not found for update.', data: {} });
         }
         return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.', data: {} });
     }
@@ -140,12 +148,12 @@ export const updateProduct = async (req: Request, res: Response) => {
 // --- 5. DELETE PRODUCT (Soft Delete) (DELETE /:id) ---
 export const deleteProduct = async (req: Request, res: Response) => {
     const { id } = req.params;
-if (!id) {
-        return res.status(400).send({ 
-            status: false, 
-            statusCode: 400, 
-            message: 'Product ID is missing from the request path.', 
-            data: {} 
+    if (!id) {
+        return res.status(400).send({
+            status: false,
+            statusCode: 400,
+            message: 'Product ID is missing from the request path.',
+            data: {}
         });
     }
     try {
@@ -159,8 +167,8 @@ if (!id) {
 
     } catch (e: any) {
         logger.error({ error: e.message, id: id }, 'ERR: product - delete - Database Error');
-        if (e.code === 'P2025') { 
-             return res.status(404).send({ status: false, statusCode: 404, message: 'Product not found for deletion.', data: {} });
+        if (e.code === 'P2025') {
+            return res.status(404).send({ status: false, statusCode: 404, message: 'Product not found for deletion.', data: {} });
         }
         return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.', data: {} });
     }

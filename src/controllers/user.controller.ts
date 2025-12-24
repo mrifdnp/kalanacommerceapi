@@ -181,6 +181,7 @@ export const getMe = async (req: AuthRequest, res: Response) => {
                 email: true,
                 phoneNumber: true,
                 balance: true, // Field Saldo (jika sudah di-migrate)
+                image: true,
                 createdAt: true,
                 updatedAt: true,
                 
@@ -211,5 +212,44 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     } catch (e: any) {
         logger.error({ error: e.message, userId }, 'ERR: user - getMe');
         return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.' });
+    }
+};
+
+export const updateProfilePhoto = async (req: AuthRequest, res: Response) => {
+     const userId = req.userId; 
+
+    
+    if (!userId) {
+        return res.status(401).send({ status: false, statusCode: 401, message: 'Unauthorized.' });
+    }
+
+    try {
+        // Cek apakah ada file yang diupload
+        if (!req.file) {
+            return res.status(400).send({ status: false, message: 'Tidak ada foto yang diupload' });
+        }
+
+        // Simpan URL Cloudinary ke kolom 'image' di tabel User
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: {
+                image: req.file.path // URL dari Cloudinary
+            },
+            select: {
+                id: true,
+                name: true,
+                image: true // Kembalikan URL baru ke frontend
+            }
+        });
+
+        return res.status(200).send({
+            status: true,
+            statusCode: 200,
+            message: 'Foto profil berhasil diperbarui',
+            data: updatedUser
+        });
+
+    } catch (e: any) {
+        return res.status(500).send({ status: false, message: 'Gagal update foto profil: ' + e.message });
     }
 };
