@@ -684,17 +684,31 @@ components:
           
     CartAddItem:
       type: object
-      required: [productId, quantity]
+      required: [productVariantId, quantity]
       properties:
-        productId:
+        productVariantId:
           type: string
           format: uuid
-          description: ID produk yang ingin ditambahkan.
+          description: ID Varian produk (misal ID untuk 1kg, 500gr, dll).
         quantity:
           type: integer
           minimum: 1
           description: Jumlah yang ingin ditambahkan (akan di-increment).
-          
+    
+
+    ProductVariant:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        variantName: { type: string, example: "1 Pack (250 gr)" }
+        price: { type: number, example: 11000 }
+        originalPrice: { type: number, example: 13000 }
+        qtyMultiplier: { type: integer, example: 1 }
+        product:
+          type: object
+          properties:
+            name: { type: string, example: "Jamur Tiram Fresh" }
+            
     CheckoutRequest:
       type: object
       required: [paymentMethod, cartItemIds]

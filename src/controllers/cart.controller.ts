@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { prisma } from '../lib/prisma.js';
 import { addCartItemValidation } from '../validations/cart.validation.js';
@@ -9,15 +9,8 @@ import { AddCartItemInput } from '../interfaces/cart.interface.js';
 type JoiError = any; 
 type ValidationResult<T> = { error: JoiError | undefined; value: T | undefined; };
 
-// ⚠️ Perluasan Tipe Request untuk mendapatkan userId dari JWT
-// Kita perlu membuat middleware JWT melampirkan data user ke req.user
-interface AuthenticatedRequest extends Request {
-    user?: { id: string; email: string; name: string }; 
-}
-
-// --- ADD ITEM TO CART (POST /carts/items) ---
-export const addItemToCart = async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user?.id;
+export const addItemToCart = async (req: any, res: Response) => {
+    const userId = req.userId;
 
     const { error, value } = addCartItemValidation(req.body) as ValidationResult<AddCartItemInput>;
 
@@ -85,8 +78,8 @@ export const addItemToCart = async (req: AuthenticatedRequest, res: Response) =>
     }
 };
 
-export const getCart = async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user?.id;
+export const getCart = async (req:any, res: Response) => {
+    const userId = req.userId;
 
     if (!userId) {
         return res.status(401).send({ status: false, statusCode: 401, message: 'User not authenticated.' });
@@ -143,8 +136,8 @@ export const getCart = async (req: AuthenticatedRequest, res: Response) => {
 };
 
 // --- UPDATE QUANTITY (PATCH /carts/items/:id) ---
-export const updateCartItemQuantity = async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user?.id;
+export const updateCartItemQuantity = async (req: any, res: Response) => {
+    const userId = req.userId;
     const cartItemId = req.params.id; 
     const { quantity } = req.body;
 
@@ -185,8 +178,8 @@ export const updateCartItemQuantity = async (req: AuthenticatedRequest, res: Res
     }
 };
 
-export const removeCartItem = async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user?.id;
+export const removeCartItem = async (req: any, res: Response) => {
+    const userId = req.userId;
     const cartItemId = req.params.id;
 
     if (!userId) { return res.status(401).send({ status: false, statusCode: 401, message: 'User not authenticated.' }); }
