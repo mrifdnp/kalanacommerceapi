@@ -144,7 +144,7 @@ paths:
   /me:
     get:
       tags:
-        - 1. User Authentication
+        - 2. User Account & Addresses
       summary: Mendapatkan Profil User yang sedang Login (Requires JWT)
       security:
         - bearerAuth: [] # ⬅️ Butuh Auth JWT
@@ -157,11 +157,36 @@ paths:
                 $ref: '#/components/schemas/UserResponse'
         '401':
           description: Unauthorized (Token missing/invalid)
+          
+  /me/update:
+    put:
+      tags:
+        - 2. User Account & Addresses
+      summary: Memperbarui Data Profil (Nama, Email, No HP)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateInput'
+      responses:
+        '200':
+          description: Profil berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '422':
+          description: Validasi gagal (format email salah, dll).
+        '409':
+          description: Email atau Nomor Telepon sudah digunakan.
 
   /auth/update-photo:
     put:
       tags:
-        - 1. User Authentication
+        - 2. User Account & Addresses
       summary: Update Foto Profil User
       security:
         - bearerAuth: []
@@ -569,6 +594,41 @@ components:
           items:
             $ref: '#/components/schemas/AddressDetail'
           description: Alamat default pengguna (hanya 1 item jika ada).
+    UserUpdateInput:
+      type: object
+      description: Payload untuk memperbarui profil. Minimal kirim satu field.
+      properties:
+        name:
+          type: string
+          example: "Dani Rifqi Updated"
+        email:
+          type: string
+          format: email
+          example: "danirifqi.new@gmail.com"
+        phoneNumber:
+          type: string
+          example: "081234567890"
+
+    UserResponse:
+      type: object
+      properties:
+        status: { type: boolean, example: true }
+        statusCode: { type: integer, example: 200 }
+        message: { type: string, example: "Success" }
+        data:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            email: { type: string, format: email }
+            image: { type: string, nullable: true } 
+            phoneNumber: { type: string }
+            balance: { type: number }
+            createdAt: { type: string, format: date-time }
+            addresses:
+              type: array
+              items:
+                $ref: '#/components/schemas/AddressDetail'
 
     AddressDetail:
       type: object

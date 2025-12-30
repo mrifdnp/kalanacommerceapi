@@ -118,7 +118,7 @@ model Unit {
   id          String    @id @default(uuid())
   outletId    String?
   name        String
-  
+  variants ProductVariant[]
   products    Product[]
   outlet      Outlet?   @relation(fields: [outletId], references: [id])
 
@@ -131,29 +131,25 @@ model Unit {
   @@map("unit")
 }
 
-// --- 5. MODEL UTAMA: Product (Master Produk dengan Stok Global) ---
 model Product {
   id         String  @id @default(uuid())
   outletId   String? @map("outlet_id")
   categoryId String? @map("category_id")
-  unitId     String? @map("unit_id") // ⬅️ Unit ID dipertahankan
+  unitId     String? @map("unit_id") // Unit dasar
 
   productCode String  @unique @map("product_code")
   name        String
-  description String?
+  description String? @db.Text
   image       String?
 
-  // Stok dan Harga
-  qty             Int      @default(0) // ⬅️ Stok Global/Total Ditambahkan
-  cogs Decimal @default(0) @db.Decimal(10, 2)
-  price           Decimal  @default(0) @map("price_1") @db.Decimal(10, 2)
-  discountNominal Decimal? @map("discount_nominal_1") @db.Decimal(10, 2)
-  discountPercent Decimal? @map("discount_percent_1") @db.Decimal(5, 2)
-  freshnessLevel Int @default(100) @map("freshness_level")
-  isPublished Boolean @default(true) @map("is_published")
-  tags        String?
+  // Stok Induk (misal dalam gram atau pcs)
+  qty Int @default(0)
 
-  // Material & Batch (Detail ini tetap ada, namun kurang relevan tanpa Stock terpisah)
+  cogs           Decimal @default(0) @db.Decimal(10, 2)
+  freshnessLevel Int     @default(100) @map("freshness_level")
+  isPublished    Boolean @default(true) @map("is_published")
+  tags           String?
+
   moq                Int?      @default(1)
   isMaterial         Boolean   @default(false) @map("is_material")
   materialCategoryId String?   @map("material_category_id")
@@ -162,27 +158,47 @@ model Product {
   sku                String?
 
   // Relasi
-  outlet     Outlet?     @relation(fields: [outletId], references: [id])
-  category   Category?   @relation(fields: [categoryId], references: [id])
-  unit       Unit?       @relation(fields: [unitId], references: [id])
-  cartItems  CartItem[]
-  orderItems OrderItem[]
-  // Kolom Audit & Soft Delete
-  createdBy  String?
-  deletedAt  DateTime?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  variants ProductVariant[] // Relasi ke pilihan harga (1, 2, 3)
+  outlet   Outlet?          @relation(fields: [outletId], references: [id])
+  category Category?        @relation(fields: [categoryId], references: [id])
+  unit     Unit?            @relation(fields: [unitId], references: [id])
+
+  createdBy String?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@map("product")
 }
 
+// --- MODEL BARU: ProductVariant (Pilihan Harga & Unit) ---
+model ProductVariant {
+  id          String @id @default(uuid())
+  productId   String @map("product_id")
+  unitId      String @map("unit_id")
+  variantName String @map("variant_name") // Contoh: "1 kg", "500 gr"
+
+  price         Decimal  @db.Decimal(10, 2)
+  originalPrice Decimal? @map("original_price") @db.Decimal(10, 2) // Harga coret
+
+  // Nilai untuk memotong stok (misal: "1 kg" -> 1000)
+  qtyMultiplier Int @default(1) @map("qty_multiplier")
+
+  product    Product     @relation(fields: [productId], references: [id])
+  unit       Unit        @relation(fields: [unitId], references: [id])
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@map("product_variant")
+}
+
+// --- 6. MODEL KERANJANG ---
 model Cart {
   id     String @id @default(uuid())
   userId String @unique @map("user_id") @db.Uuid
 
-  // Relasi
   user  User       @relation(fields: [userId], references: [id])
-  items CartItem[] // Cart memiliki banyak CartItem
+  items CartItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -190,43 +206,37 @@ model Cart {
   @@map("cart")
 }
 
-// --- MODEL BARU: CartItem (Item di Keranjang) ---
 model CartItem {
-  id        String @id @default(uuid())
-  cartId    String @map("cart_id")
-  productId String @map("product_id")
-  quantity  Int
+  id               String @id @default(uuid())
+  cartId           String @map("cart_id")
+  productVariantId String @map("product_variant_id") // Hubungkan ke Varian
+  quantity         Int
 
-  // Relasi
-  cart    Cart    @relation(fields: [cartId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  cart    Cart           @relation(fields: [cartId], references: [id])
+  variant ProductVariant @relation(fields: [productVariantId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Memastikan satu produk hanya muncul satu kali di satu Cart
-  @@unique([cartId, productId])
+  @@unique([cartId, productVariantId])
   @@map("cart_item")
 }
 
 model Order {
-  id       String @id @default(uuid())
-  userId   String @map("user_id") @db.Uuid
-  outletId String @map("outlet_id") // Outlet Penjual
+  id        String @id @default(uuid())
+  userId    String @map("user_id") @db.Uuid
+  outletId  String @map("outlet_id")
+  orderCode String @unique
 
-  orderCode   String @unique
-  totalAmount Int // Subtotal item di Order ini
-  netAmount   Int // Total setelah diskon (Final amount)
-
-  status        String  @default("PENDING")
+  totalAmount Int
+  netAmount   Int
+  status      String  @default("PENDING")
   paymentMethod String?
 
-  // Relasi
   user   User        @relation(fields: [userId], references: [id])
   outlet Outlet      @relation(fields: [outletId], references: [id])
-  items  OrderItem[] // Order memiliki banyak OrderItem
+  items  OrderItem[]
 
-  // Kolom Audit
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -234,16 +244,15 @@ model Order {
 }
 
 model OrderItem {
-  id        String @id @default(uuid())
-  orderId   String @map("order_id")
-  productId String @map("product_id")
+  id               String @id @default(uuid())
+  orderId          String @map("order_id")
+  productVariantId String @map("product_variant_id") 
+  quantity        Int
+  priceAtPurchase Decimal @db.Decimal(10, 2)
+  subtotal        Decimal @db.Decimal(10, 2)
 
-  quantity Int
-  subtotal Decimal @db.Decimal(10, 2)
-
-  // Relasi
-  order   Order   @relation(fields: [orderId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  order   Order          @relation(fields: [orderId], references: [id])
+  variant ProductVariant @relation(fields: [productVariantId], references: [id])
 
   createdAt DateTime @default(now())
 

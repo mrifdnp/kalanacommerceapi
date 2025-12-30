@@ -27,3 +27,8 @@ export interface AddressUpdateInput {
     isDefault?: boolean;
     // updatedBy (userId) akan diisi oleh server
 }
+export interface UpdateProfileInput {
+    name?: string;
+    email?: string;
+    phoneNumber?: string;
+}

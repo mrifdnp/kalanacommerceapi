@@ -60,7 +60,14 @@ export const getProducts = async (req: Request, res: Response) => {
     try {
         const allProducts = await prisma.product.findMany({
             where: { deletedAt: null },
-            include: { outlet: true, category: true, unit: true },
+            include: {
+                variants: {
+                    include: { unit: true },
+                },
+                outlet: true,
+                category: true,
+                unit: true,
+            },
         });
 
         logger.info(`Success get all product data. Found ${allProducts.length} items.`);
@@ -89,7 +96,12 @@ export const getProduct = async (req: Request, res: Response) => {
                 id: id,
                 deletedAt: null
             },
-            include: { outlet: true, category: true, unit: true },
+            include: {
+                variants: {
+                    include: { unit: true },
+                }, 
+                outlet: true, category: true, unit: true
+            },
         });
 
         if (!product) {

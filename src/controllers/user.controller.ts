@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs'; 
+import bcrypt from 'bcryptjs';
 import { logger } from '../utils/logger.js';
 import { prisma } from '../lib/prisma.js';
-import { loginValidation, registerValidation } from '../validations/user.validation.js';
+import { loginValidation, registerValidation, updateProfileValidation } from '../validations/user.validation.js';
 import jwt from 'jsonwebtoken';
+
 interface RegisterInput {
     name: string;
     email: string;
@@ -18,10 +19,10 @@ interface LoginInput {
 }
 
 interface AuthRequest extends Request {
-    userId?: string; 
+    userId?: string;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key'; 
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key';
 const TOKEN_EXPIRES_IN = '1d';
 
 
@@ -42,7 +43,7 @@ export const registerUser = async (req: Request, res: Response) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(value.password, salt);
 
- 
+
         const newUser = await prisma.user.create({
             data: {
                 name: value.name,
@@ -56,7 +57,7 @@ export const registerUser = async (req: Request, res: Response) => {
                 email: true,
                 phoneNumber: true,
                 createdAt: true,
-            } 
+            }
         });
 
         logger.info({ userId: newUser.id }, 'Success register new user');
@@ -69,8 +70,8 @@ export const registerUser = async (req: Request, res: Response) => {
 
     } catch (e: any) {
         logger.error({ error: e.message, code: e.code, body: req.body }, 'ERR: user - register - Database Error');
-        
-        if (e.code === 'P2002') { 
+
+        if (e.code === 'P2002') {
             const target = e.meta?.target;
             let message = 'Email is already registered.';
 
@@ -102,7 +103,7 @@ export const loginUser = async (req: Request, res: Response) => {
         return res.status(422).send({
             status: false,
             statusCode: 422,
-            message: 'Email and password are required.', 
+            message: 'Email and password are required.',
             data: {}
         });
     }
@@ -123,11 +124,11 @@ export const loginUser = async (req: Request, res: Response) => {
         }
 
         // 3. Buat Payload JWT (data yang akan disimpan di token)
-        const tokenPayload = { 
-            id: user.id, 
+        const tokenPayload = {
+            id: user.id,
             email: user.email,
             name: user.name,
-       
+
         };
 
         // 4. Buat Token
@@ -162,7 +163,7 @@ export const loginUser = async (req: Request, res: Response) => {
 
 export const getMe = async (req: AuthRequest, res: Response) => {
     // 1. Ambil userId yang dilampirkan oleh authenticateToken (dari payload JWT)
-    const userId = req.userId; 
+    const userId = req.userId;
 
     // Safety check (seharusnya tidak tercapai jika middleware sudah bekerja)
     if (!userId) {
@@ -173,7 +174,7 @@ export const getMe = async (req: AuthRequest, res: Response) => {
         // 2. Query ke database menggunakan userId
         const user = await prisma.user.findUnique({
             where: { id: userId, deletedAt: null }, // Mencari user yang aktif (belum soft delete)
-            
+
             // 3. BEST PRACTICE: Gunakan 'select' eksplisit untuk Keamanan dan Efisiensi Payload
             select: {
                 id: true,
@@ -184,13 +185,13 @@ export const getMe = async (req: AuthRequest, res: Response) => {
                 image: true,
                 createdAt: true,
                 updatedAt: true,
-                
+
                 // Opsional: Hanya ambil Alamat Default (efisiensi data)
                 addresses: {
-                    where: { 
-                        isDefault: true, 
+                    where: {
+                        isDefault: true,
                         // Jika Anda punya deletedAt di UserAddress: deletedAt: null 
-                    }, 
+                    },
                     take: 1 // Hanya ambil 1 (yang default)
                 },
             }
@@ -202,11 +203,11 @@ export const getMe = async (req: AuthRequest, res: Response) => {
         }
 
         logger.info({ userId }, 'Success getting user profile (/me).');
-        return res.status(200).send({ 
-            status: true, 
-            statusCode: 200, 
-            message: 'Success get user profile', 
-            data: user 
+        return res.status(200).send({
+            status: true,
+            statusCode: 200,
+            message: 'Success get user profile',
+            data: user
         });
 
     } catch (e: any) {
@@ -215,10 +216,70 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     }
 };
 
-export const updateProfilePhoto = async (req: AuthRequest, res: Response) => {
-     const userId = req.userId; 
+export const updateProfile = async (req: AuthRequest, res: Response) => {
+    // 1. Validasi Input
+    const { error, value } = updateProfileValidation(req.body);
 
-    
+    if (error) {
+        // Ambil pesan error pertama dengan fallback message
+        const errorMessage = error.details?.[0]?.message || 'Input tidak valid';
+        
+        logger.error({ validationError: error.details }, 'ERR: user - updateProfile - Validation failed');
+        
+        return res.status(422).send({
+            status: false,
+            statusCode: 422,
+            message: errorMessage,
+            data: {}
+        });
+    }
+
+    const userId = req.userId;
+    if (!userId) return res.status(401).send({ status: false, message: 'Unauthorized' });
+
+    try {
+        // 2. Update dengan teknik spread untuk menghindari 'undefined'
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: {
+                ...(value.name && { name: value.name }),
+                ...(value.email && { email: value.email }),
+                ...(value.phoneNumber && { phoneNumber: value.phoneNumber }),
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phoneNumber: true,
+                image: true
+            }
+        });
+
+        return res.status(200).send({
+            status: true,
+            statusCode: 200,
+            message: 'Profil berhasil diperbarui',
+            data: updatedUser
+        });
+
+    } catch (e: any) {
+        // Handle unique constraint pnpm prisma
+        if (e.code === 'P2002') {
+            return res.status(409).send({
+                status: false,
+                statusCode: 409,
+                message: 'Email atau Nomor Telepon sudah terdaftar',
+                data: {}
+            });
+        }
+        return res.status(500).send({ status: false, message: 'Internal server error' });
+    }
+};
+
+export const updateProfilePhoto = async (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
+
+
     if (!userId) {
         return res.status(401).send({ status: false, statusCode: 401, message: 'Unauthorized.' });
     }
