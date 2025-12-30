@@ -223,20 +223,23 @@ model CartItem {
 }
 
 model Order {
-  id        String @id @default(uuid())
-  userId    String @map("user_id") @db.Uuid
-  outletId  String @map("outlet_id")
-  orderCode String @unique
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id") @db.Uuid
+  outletId        String   @map("outlet_id")
+  orderCode       String   @unique
+  totalAmount     Int
+  netAmount       Int
+  status          String   @default("PENDING") // PENDING, PAID, CANCELLED, EXPIRED
+  paymentMethod   String?
+  
+  // Field Tambahan untuk Midtrans
+  snapToken       String?  @map("snap_token")
+  snapRedirectUrl String?  @map("snap_redirect_url")
 
-  totalAmount Int
-  netAmount   Int
-  status      String  @default("PENDING")
-  paymentMethod String?
-
-  user   User        @relation(fields: [userId], references: [id])
-  outlet Outlet      @relation(fields: [outletId], references: [id])
-  items  OrderItem[]
-
+  user    User        @relation(fields: [userId], references: [id])
+  outlet  Outlet      @relation(fields: [outletId], references: [id])
+  items   OrderItem[]
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

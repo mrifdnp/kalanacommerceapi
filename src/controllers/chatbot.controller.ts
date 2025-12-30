@@ -3,20 +3,12 @@ import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
 import { logger } from '../utils/logger.js';
 
-// ⚠️ Gunakan tipe AuthRequest yang sudah kita buat sebelumnya
 
-
-// Inisialisasi Google Gen AI (API Key harus ada di process.env)
 const ai = new GoogleGenAI({});
 
-// PENTING: Map untuk menyimpan sesi chat per pengguna
-// Di lingkungan production, ini harus disimpan di Redis atau Database
+
 const userChatSessions = new Map<string, Chat>();
-/**
- * Controller untuk menerima pesan dari user dan membalasnya, 
- * sambil mempertahankan riwayat percakapan.
- * Route: POST /api/chatbot/send
- */
+
 export const sendChatMessage = async (req: AuthRequest, res: Response) => {
     const userId = req.userId; // Dari JWT
     const { message } = req.body;

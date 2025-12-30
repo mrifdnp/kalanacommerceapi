@@ -2,8 +2,9 @@
 import { Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { prisma } from '../lib/prisma.js';
-import { addCartItemValidation } from '../validations/cart.validation.js';
+import { addCartItemValidation, checkoutValidation } from '../validations/cart.validation.js';
 import { AddCartItemInput } from '../interfaces/cart.interface.js';
+import midtransClient from 'midtrans-client';
 
 // Asumsi ValidationResult dan JoiError didefinisikan atau diimpor
 type JoiError = any; 
@@ -217,5 +218,106 @@ export const removeCartItem = async (req: any, res: Response) => {
             return res.status(404).send({ status: false, statusCode: 404, message: 'Cart item not found or does not belong to user.', data: {} });
         }
         return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.', data: {} });
+    }
+};
+
+const snap = new midtransClient.Snap({
+    isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
+    serverKey: process.env.MIDTRANS_SERVER_KEY 
+});
+
+export const checkout = async (req: any, res: Response) => {
+    const userId = req.userId;
+    
+    // VALIDASI INPUT (Menggunakan Joi yang kita buat tadi)
+    const { error: validationError, value } = checkoutValidation(req.body);
+    if (validationError) {
+        return res.status(422).send({ status: false, statusCode: 422, message: validationError.details?.[0]?.message });
+    }
+
+    // Pakai value dari Joi agar 'paymentMethod' dianggap terpakai
+    const { cartItemIds, paymentMethod } = value;
+
+    try {
+        const result = await prisma.$transaction(async (tx) => {
+            const cartItems = await tx.cartItem.findMany({
+                where: { id: { in: cartItemIds }, cart: { userId: userId } },
+                include: { 
+                    variant: { include: { product: true } },
+                    cart: { include: { user: true } }
+                }
+            });
+
+            if (cartItems.length === 0) throw new Error("Item tidak ditemukan.");
+
+            const groupedByOutlet: Record<string, typeof cartItems> = {};
+            cartItems.forEach(item => {
+                const oid = item.variant.product.outletId!;
+                if (!groupedByOutlet[oid]) groupedByOutlet[oid] = [];
+                groupedByOutlet[oid].push(item);
+            });
+
+            const finalOrders = [];
+
+            for (const [outletId, items] of Object.entries(groupedByOutlet)) {
+                const totalAmount = items.reduce((acc, item) => acc + (Number(item.variant.price) * item.quantity), 0);
+                const orderCode = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+                // Gunakan Optional Chaining (?) untuk menghindari 'possibly undefined'
+                const customerName = cartItems[0]?.cart?.user?.name || 'Customer';
+                const customerEmail = cartItems[0]?.cart?.user?.email || '';
+
+                const parameter = {
+                    transaction_details: {
+                        order_id: orderCode,
+                        gross_amount: totalAmount
+                    },
+                    customer_details: {
+                        first_name: customerName,
+                        email: customerEmail,
+                    },
+                    // enabled_payments: ["qris"]
+                };
+
+                const midtransTx = await snap.createTransaction(parameter);
+
+                const newOrder = await tx.order.create({
+                    data: {
+                        userId,
+                        outletId,
+                        orderCode,
+                        totalAmount,
+                        netAmount: totalAmount,
+                        paymentMethod: paymentMethod || "MIDTRANS_QRIS", // Sekarang terpakai
+                        snapToken: midtransTx.token,
+                        snapRedirectUrl: midtransTx.redirect_url,
+                        items: {
+                            create: items.map(item => ({
+                                productVariantId: item.productVariantId,
+                                quantity: item.quantity,
+                                priceAtPurchase: item.variant.price,
+                                subtotal: Number(item.variant.price) * item.quantity
+                            }))
+                        }
+                    }
+                });
+                
+                finalOrders.push(newOrder);
+            }
+
+            await tx.cartItem.deleteMany({ where: { id: { in: cartItemIds } } });
+
+            return finalOrders;
+        });
+
+        return res.status(201).json({
+            status: true,
+            message: "Pesanan berhasil dibuat. Silakan selesaikan pembayaran.",
+            data: result
+        });
+
+    } catch (e: any) {
+        logger.error({ error: e.message, userId }, 'ERR: checkout');
+        return res.status(500).json({ status: false, message: e.message });
     }
 };
