@@ -17,69 +17,69 @@ interface AuthenticatedRequest extends Request {
 
 // --- ADD ITEM TO CART (POST /carts/items) ---
 export const addItemToCart = async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user?.id; // ⬅️ Ambil userId dari payload JWT
+    const userId = req.user?.id;
 
-    // 1. Validasi Input Body
     const { error, value } = addCartItemValidation(req.body) as ValidationResult<AddCartItemInput>;
 
     if (error || !value) {
         return res.status(422).send({ status: false, statusCode: 422, message: error?.details[0]?.message, data: {} });
     }
     
-    const { productId, quantity } = value;
+    // Ambil productVariantId dari value (Pastikan di Joi sudah diganti juga menjadi productVariantId)
+    const { productVariantId, quantity } = value as any;
 
     if (!userId) {
-        // Ini seharusnya ditangani oleh middleware JWT, tapi ini adalah cek safety
         return res.status(401).send({ status: false, statusCode: 401, message: 'User not authenticated.' });
     }
 
     try {
-        // --- 2. Cari atau Buat Keranjang Utama (Cart) ---
-        // Jika Cart belum ada untuk user ini, buatlah.
         const cart = await prisma.cart.upsert({
             where: { userId: userId },
-            update: {}, // Tidak perlu update Cart jika sudah ada
+            update: {},
             create: { userId: userId },
-            select: { id: true }, // Hanya perlu ID Cart
+            select: { id: true },
         });
         
         const cartId = cart.id;
 
-        // --- 3. Tambahkan atau Update Item di CartItem (UPSERT) ---
         const cartItem = await prisma.cartItem.upsert({
             where: {
-                // Kunci unik gabungan
-                cartId_productId: {
+                cartId_productVariantId: {
                     cartId: cartId,
-                    productId: productId,
+                    productVariantId: productVariantId,
                 },
             },
             update: {
-                quantity: { increment: quantity }, // Jika sudah ada, tambahkan kuantitas
+                quantity: { increment: quantity },
             },
             create: {
                 cartId: cartId,
-                productId: productId,
+                productVariantId: productVariantId,
                 quantity: quantity,
             },
-            include: { product: { select: { name: true, price: true } } }
+            include: { 
+                variant: { 
+                    include: { 
+                        product: { select: { name: true } },
+                        unit: { select: { name: true } }
+                    } 
+                } 
+            }
         });
 
-        logger.info({ userId, productId, cartId }, `Item added/updated in cart.`);
+        logger.info({ userId, productVariantId, cartId }, `Item variant added/updated in cart.`);
         
         return res.status(200).send({
             status: true,
             statusCode: 200,
-            message: 'Product added to cart successfully',
+            message: 'Product variant added to cart successfully',
             data: cartItem,
         });
 
     } catch (e: any) {
-        logger.error({ error: e.message, userId, productId }, 'ERR: cart - addItem - Database Error');
-        
-        // P2003: Foreign Key Constraint (Product ID atau Cart ID salah)
+        logger.error({ error: e.message, userId, productVariantId }, 'ERR: cart - addItem - Database Error');
         if (e.code === 'P2003') { 
-            return res.status(404).send({ status: false, statusCode: 404, message: 'Product not found.', data: {} });
+            return res.status(404).send({ status: false, statusCode: 404, message: 'Product variant not found.', data: {} });
         }
         return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.', data: {} });
     }
@@ -95,31 +95,33 @@ export const getCart = async (req: AuthenticatedRequest, res: Response) => {
     try {
         const cart = await prisma.cart.findUnique({
             where: { userId: userId },
-            // Mengambil semua item, termasuk detail produk
             include: {
                 items: {
                     select: {
                         id: true,
                         quantity: true,
-                        product: {
+                        variant: {
                             select: {
                                 id: true,
-                                name: true,
-                                price: true, // Asumsi ini adalah price_1
-                                productCode: true,
-                                image: true,
+                                variantName: true,
+                                price: true,
+                                product: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        productCode: true,
+                                        image: true,
+                                    }
+                                },
                                 unit: { select: { name: true } }
                             }
                         }
                     },
-                    orderBy: {
-                        createdAt: 'asc' // Urutkan berdasarkan waktu penambahan
-                    }
+                    orderBy: { createdAt: 'asc' }
                 }
             }
         });
 
-        // Jika cart belum pernah dibuat (null), kembalikan array kosong
         const cartItems = cart?.items || [];
         
         logger.info({ userId, itemCount: cartItems.length }, 'Success retrieved cart items.');
@@ -140,56 +142,46 @@ export const getCart = async (req: AuthenticatedRequest, res: Response) => {
     }
 };
 
+// --- UPDATE QUANTITY (PATCH /carts/items/:id) ---
 export const updateCartItemQuantity = async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user?.id;
-    const cartItemId = req.params.id; // ID dari CartItem
-    const { quantity } = req.body; // Kuantitas baru
+    const cartItemId = req.params.id; 
+    const { quantity } = req.body;
 
     if (!cartItemId) {
-        return res.status(400).send({ 
-            status: false, 
-            statusCode: 400, 
-            message: 'Cart Id is missing from the request path.', 
-            data: {} 
-        });
-    }
-    // ⚠️ TODO: Buat validasi Joi untuk memastikan 'quantity' adalah integer >= 1
-    if (typeof quantity !== 'number' || quantity < 1) {
-        return res.status(422).send({ status: false, statusCode: 422, message: 'Quantity must be a number greater than or equal to 1.' });
+        return res.status(400).send({ status: false, statusCode: 400, message: 'Cart Item Id is missing.', data: {} });
     }
 
-    if (!userId) { return res.status(401).send({ status: false, statusCode: 401, message: 'User not authenticated.' }); }
+    if (typeof quantity !== 'number' || quantity < 1) {
+        return res.status(422).send({ status: false, statusCode: 422, message: 'Quantity must be >= 1.' });
+    }
+
+    if (!userId) return res.status(401).send({ status: false, statusCode: 401, message: 'User not authenticated.' });
 
     try {
-        // 1. Cari CartItem dan verifikasi kepemilikan (melalui Cart)
         const updatedItem = await prisma.cartItem.update({
             where: {
                 id: cartItemId,
-                // Tambahkan validasi kepemilikan: CartItem harus dimiliki oleh Cart yang terikat dengan User ini
-                cart: {
-                    userId: userId
-                }
+                cart: { userId: userId }
             },
-            data: {
-                quantity: quantity, // Set kuantitas baru
-            },
-            include: { product: { select: { name: true } } }
+            data: { quantity: quantity },
+            include: { 
+                variant: { 
+                    include: { product: { select: { name: true } } } 
+                } 
+            }
         });
 
-        logger.info({ userId, cartItemId }, `Updated cart item quantity to ${quantity}`);
         return res.status(200).send({
             status: true,
             statusCode: 200,
-            message: 'Cart item quantity updated successfully',
+            message: 'Quantity updated successfully',
             data: updatedItem,
         });
 
     } catch (e: any) {
-        logger.error({ error: e.message, cartItemId }, 'ERR: cart - updateQuantity - Database Error');
-        if (e.code === 'P2025') {
-            return res.status(404).send({ status: false, statusCode: 404, message: 'Cart item not found or does not belong to user.', data: {} });
-        }
-        return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.', data: {} });
+        logger.error({ error: e.message, cartItemId }, 'ERR: cart - updateQuantity');
+        return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.' });
     }
 };
 
