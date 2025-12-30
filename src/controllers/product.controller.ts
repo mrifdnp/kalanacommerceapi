@@ -66,7 +66,7 @@ export const getProducts = async (req: Request, res: Response) => {
                 },
                 outlet: true,
                 category: true,
-                unit: true,
+                
             },
         });
 
