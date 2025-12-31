@@ -16,7 +16,7 @@ npm-debug.log
 yarn-error.log
 .pnpm-debug.log
 
-# ------------------------------------
+# ------------------------------    ------
 # 2. PRISMA & GENERATED FILES
 # ------------------------------------
 # Prisma Client Standard (Biasanya tergenerate di node_modules, tapi ini untuk kepastian)

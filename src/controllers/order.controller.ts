@@ -48,12 +48,22 @@ export const getOrderDetail = async (req: AuthRequest, res: Response): Promise<R
     const userId = req.userId;
     const orderId = req.params.id;
 
-    if (!orderId) {
+   if (!orderId) {
         return res.status(400).send({ status: false, message: 'Order ID is required.' });
     }
 
+    // 2. Validasi userId WAJIB dicek di sini sebelum masuk try-catch
+    // Ini yang akan menghilangkan error "string | undefined" di TypeScript
+    if (!userId) {
+        return res.status(401).send({ 
+            status: false, 
+            statusCode: 401, 
+            message: 'User not authenticated.' 
+        });
+    }
+
     try {
-        const order = await prisma.order.findUnique({
+        const order = await prisma.order.findFirst({
             where: { 
                 id: orderId,
                 userId: userId 
