@@ -12,7 +12,10 @@ import path from 'path';
 const swaggerPath = path.resolve(process.cwd(), 'src/docs/openapi.yaml');
 const swaggerDocument = YAML.load(swaggerPath);
 
-
+const swaggerOptions = {
+    customfavIcon: "/favicon.ico", // Menggunakan favicon yang sudah di-serve tadi
+    customSiteTitle: "Kalana Commerce API Docs" // Judul tab browser
+};
 
 const PORT = process.env.PORT ||  3000;
 
@@ -24,7 +27,7 @@ app.use(cors())
 app.use(bodyParser.json()); 
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
 
 app.use((req,res,next)=>{
     res.setHeader('Access-Control-Allow-Headers','*')

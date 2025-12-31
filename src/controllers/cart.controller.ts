@@ -5,12 +5,13 @@ import { prisma } from '../lib/prisma.js';
 import { addCartItemValidation, checkoutValidation } from '../validations/cart.validation.js';
 import { AddCartItemInput } from '../interfaces/cart.interface.js';
 import midtransClient from 'midtrans-client';
+import { AuthRequest } from '../middlewares/auth.middleware.js';
 
 // Asumsi ValidationResult dan JoiError didefinisikan atau diimpor
 type JoiError = any; 
 type ValidationResult<T> = { error: JoiError | undefined; value: T | undefined; };
 
-export const addItemToCart = async (req: any, res: Response) => {
+export const addItemToCart = async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
 
     const { error, value } = addCartItemValidation(req.body) as ValidationResult<AddCartItemInput>;
@@ -79,7 +80,7 @@ export const addItemToCart = async (req: any, res: Response) => {
     }
 };
 
-export const getCart = async (req:any, res: Response) => {
+export const getCart = async (req:AuthRequest, res: Response) => {
     const userId = req.userId;
 
     if (!userId) {
@@ -136,8 +137,7 @@ export const getCart = async (req:any, res: Response) => {
     }
 };
 
-// --- UPDATE QUANTITY (PATCH /carts/items/:id) ---
-export const updateCartItemQuantity = async (req: any, res: Response) => {
+export const updateCartItemQuantity = async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     const cartItemId = req.params.id; 
     const { quantity } = req.body;
@@ -179,7 +179,7 @@ export const updateCartItemQuantity = async (req: any, res: Response) => {
     }
 };
 
-export const removeCartItem = async (req: any, res: Response) => {
+export const removeCartItem = async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
     const cartItemId = req.params.id;
 

@@ -9,6 +9,7 @@ import profileRouter from "./profile.route.js";
 import { addressRouter } from "./address.routes.js";
 import { chatbotRouter } from "./chatbot.route.js";
 import paymentRouter from "./payment.route.js";
+import { orderRouter } from "./order.route.js";
 
 const _routes: Array<[string, Router]> = [
     ['/api/products', ProductRouter],
@@ -20,7 +21,8 @@ const _routes: Array<[string, Router]> = [
     ['/api/me', profileRouter],
     ['/api/addresses', addressRouter],
     ['/api/chatbot', chatbotRouter],
-    ['/api/payments', paymentRouter]
+    ['/api/payments', paymentRouter],
+    ['/api/orders', orderRouter]
 ]
 export const routes = (app: Application) => {
 
