@@ -5,10 +5,8 @@ import { prisma } from '../lib/prisma.js';
 import { createUnitValidation } from '../validations/unit.validation.js';
 import { ValidationResult } from 'joi';
 
-// Asumsi UnitInput/ValidationResult sudah didefinisikan
 interface UnitInput { name: string, outletId?: string, createdBy?: string; }
 
-// --- CREATE UNIT (POST) ---
 export const createUnit = async (req: Request, res: Response) => {
     const { error, value } = createUnitValidation(req.body) as ValidationResult<UnitInput>;
 
@@ -31,7 +29,6 @@ export const createUnit = async (req: Request, res: Response) => {
     }
 };
 
-// --- READ ALL UNITS (GET) ---
 export const getUnits = async (req: Request, res: Response) => {
     try {
         const allUnits = await prisma.unit.findMany({
@@ -49,13 +46,11 @@ export const getUnits = async (req: Request, res: Response) => {
 export const getUnitById = async (req: Request, res: Response) => {
     const { id } = req.params;
 
-    // Menangani error jika ID tidak ada atau undefined
     if (!id) {
         return res.status(400).send({ status: false, statusCode: 400, message: 'Unit ID is required.', data: null });
     }
 
     try {
-        // Menggunakan findFirst untuk kriteria non-unik (deletedAt)
         const unit = await prisma.unit.findFirst({
             where: { id: id, deletedAt: null },
             include: { outlet: { select: { name: true } } }

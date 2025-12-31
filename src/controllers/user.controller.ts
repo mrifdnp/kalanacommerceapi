@@ -285,21 +285,19 @@ export const updateProfilePhoto = async (req: AuthRequest, res: Response) => {
     }
 
     try {
-        // Cek apakah ada file yang diupload
         if (!req.file) {
             return res.status(400).send({ status: false, message: 'Tidak ada foto yang diupload' });
         }
 
-        // Simpan URL Cloudinary ke kolom 'image' di tabel User
         const updatedUser = await prisma.user.update({
             where: { id: userId },
             data: {
-                image: req.file.path // URL dari Cloudinary
+                image: req.file.path 
             },
             select: {
                 id: true,
                 name: true,
-                image: true // Kembalikan URL baru ke frontend
+                image: true
             }
         });
 

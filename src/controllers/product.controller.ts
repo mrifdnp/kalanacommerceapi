@@ -7,14 +7,12 @@ import { prisma } from '../lib/prisma.js';
 import { createProductValidation, updateProductValidation } from '../validations/product.validation.js';
 import { ProductInput, ProductUpdateInput } from '../interfaces/product.interface.js';
 
-// Tipe untuk hasil validasi (Diambil dari validation.ts)
 type JoiError = any;
 type ValidationResult<T> = { error: JoiError | undefined; value: T | undefined; };
 
-// --- 1. CREATE PRODUCT (POST) ---
+
 export const createProduct = async (req: Request, res: Response) => {
-    // 1. Validasi input teks menggunakan Joi
-    // Pastikan di Joi, field 'image' sudah .optional() dan tidak kaku .uri()
+
     const { error, value } = createProductValidation(req.body) as ValidationResult<ProductInput>;
 
     if (error || !value) {
@@ -55,7 +53,7 @@ export const createProduct = async (req: Request, res: Response) => {
     }
 };
 
-// --- 2. READ ALL PRODUCTS (GET /) ---
+
 export const getProducts = async (req: Request, res: Response) => {
     try {
         const allProducts = await prisma.product.findMany({
@@ -78,7 +76,6 @@ export const getProducts = async (req: Request, res: Response) => {
     }
 };
 
-// --- 3. READ SINGLE PRODUCT (GET /:id) ---
 export const getProduct = async (req: Request, res: Response) => {
     const { id } = req.params;
     if (!id) {
@@ -91,7 +88,7 @@ export const getProduct = async (req: Request, res: Response) => {
     }
 
     try {
-        const product = await prisma.product.findFirst({ // ⬅️ UBAH KE findFirst
+        const product = await prisma.product.findFirst({ 
             where: {
                 id: id,
                 deletedAt: null
@@ -117,7 +114,6 @@ export const getProduct = async (req: Request, res: Response) => {
     }
 };
 
-// --- 4. UPDATE PRODUCT (PATCH /:id) ---
 export const updateProduct = async (req: Request, res: Response) => {
     const { id } = req.params;
     if (!id) {
@@ -157,7 +153,6 @@ export const updateProduct = async (req: Request, res: Response) => {
     }
 };
 
-// --- 5. DELETE PRODUCT (Soft Delete) (DELETE /:id) ---
 export const deleteProduct = async (req: Request, res: Response) => {
     const { id } = req.params;
     if (!id) {
