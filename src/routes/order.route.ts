@@ -8,6 +8,6 @@ const orderRouter = express.Router();
 
 
 orderRouter.get('/',authenticateToken, getOrders);
-orderRouter.get('/:id', getOrderDetail);
+orderRouter.get('/:id', authenticateToken, getOrderDetail);
 
 export { orderRouter };
