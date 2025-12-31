@@ -10,7 +10,6 @@ import YAML from 'yamljs';
 import path from 'path';
 
 const swaggerPath = path.resolve(process.cwd(), 'src/docs/openapi.yaml');
-// Muat file YAML
 const swaggerDocument = YAML.load(swaggerPath);
 
 
@@ -25,7 +24,6 @@ app.use(cors())
 app.use(bodyParser.json()); 
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// ⬅️ DAFTARKAN JALUR SWAGGER/DOCS
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 app.use((req,res,next)=>{
