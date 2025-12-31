@@ -20,7 +20,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
         const user = await prisma.user.findUnique({ where: { email } });
 
         if (!user) {
-            return res.status(500).send({ message: 'Jika akun ditemukan, kode OTP telah dikirim.' });
+            return res.status(500).send({ message: 'Akun Tidak Ditemukan' });
         }
 
         // 1. Generate OTP 6 Digit Angka
