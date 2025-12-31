@@ -183,7 +183,7 @@ paths:
         '409':
           description: Email atau Nomor Telepon sudah digunakan.
 
-  /auth/update-photo:
+  /me/update-photo:
     put:
       tags:
         - 2. User Account & Addresses

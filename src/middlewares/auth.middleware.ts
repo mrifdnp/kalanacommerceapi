@@ -12,6 +12,7 @@ export interface AuthRequest extends Request {
     userPayload?: JwtPayload; // Opsional: untuk menyimpan seluruh payload
 }
 
+
 const JWT_SECRET = process.env.JWT_SECRET ?? 'fallback_secret_key';
 
 /**
