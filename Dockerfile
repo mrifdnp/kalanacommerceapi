@@ -11,6 +11,9 @@ RUN pnpm install
 # Copy semua file lainnya
 COPY . .
 
+ARG DATABASE_URL
+ENV DATABASE_URL=$DATABASE_URL
+
 # Generate prisma client dan build project
 RUN pnpm prisma generate
 RUN pnpm build
