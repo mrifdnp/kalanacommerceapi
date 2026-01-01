@@ -2,15 +2,15 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:17-alpine
+    image: ${POSTGRES_VERSION:-postgres:15-alpine}
     container_name: kalana
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: kalanacommerce
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5434:5432"
+      - "${DB_PORT_EXTERNAL:-5434}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -21,7 +21,7 @@ services:
     container_name: kalana-api
     restart: always
     ports:
-      - "3000:3000"
+      - "${API_PORT_EXTERNAL:-3000}:3000" 
     env_file: .env
     depends_on:
       - db
@@ -34,3 +34,5 @@ networks:
 
 volumes:
   postgres_data:
+    external: ${DB_VOLUME_EXTERNAL:-false}
+    name: ${DB_VOLUME_NAME:-postgres_data}
