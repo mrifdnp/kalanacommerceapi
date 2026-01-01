@@ -23,6 +23,8 @@ services:
     ports:
       - "${API_PORT_EXTERNAL:-3000}:3000" 
     env_file: .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
     depends_on:
       - db
     networks:

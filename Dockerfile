@@ -10,7 +10,7 @@ RUN pnpm install
 
 # Copy semua file lainnya
 COPY . .
-ENV DATABASE_URL="postgresql://postgres:postgres@db:5432/kalanacommerce?schema=public"
+
 # Generate prisma client dan build project
 RUN pnpm prisma generate
 RUN pnpm build
