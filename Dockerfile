@@ -1,6 +1,13 @@
 FROM node:20-alpine
+
+RUN apk add --no-cache tzdata
+
+# 2. Atur environment variable untuk zona waktu
+ENV TZ=Asia/Jakarta
+
 RUN npm install -g pnpm
 WORKDIR /app
+
 
 # Copy file konfigurasi dulu agar install lebih cepat (cache)
 COPY package.json pnpm-lock.yaml ./

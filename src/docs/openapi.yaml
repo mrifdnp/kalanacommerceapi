@@ -529,6 +529,7 @@ paths:
                         id: { type: string, format: uuid }
                         orderCode: { type: string, example: "ORD-1735634650000-88" }
                         totalAmount: { type: number, example: 50000 }
+                        paymentGroupId: {type: string, example: "PAY-42197091247"}
                         snapToken: { type: string, example: "7b89f..." }
                         snapRedirectUrl: { type: string, example: "https://app.sandbox.midtrans.com/snap/v2/vtweb/7b89f..." }
         '422':
