@@ -8,37 +8,31 @@ import { updateProfileValidation } from '../validations/user.validation.js';
 
 
 export const getMe = async (req: AuthRequest, res: Response) => {
-    // 1. Ambil userId yang dilampirkan oleh authenticateToken (dari payload JWT)
     const userId = req.userId;
 
-    // Safety check (seharusnya tidak tercapai jika middleware sudah bekerja)
     if (!userId) {
         return res.status(401).send({ status: false, statusCode: 401, message: 'Unauthorized.' });
     }
 
     try {
-        // 2. Query ke database menggunakan userId
         const user = await prisma.user.findUnique({
-            where: { id: userId, deletedAt: null }, // Mencari user yang aktif (belum soft delete)
+            where: { id: userId, deletedAt: null }, 
 
-            // 3. BEST PRACTICE: Gunakan 'select' eksplisit untuk Keamanan dan Efisiensi Payload
             select: {
                 id: true,
                 name: true,
                 email: true,
                 phoneNumber: true,
-                balance: true, // Field Saldo (jika sudah di-migrate)
+                balance: true, 
                 image: true,
                 createdAt: true,
                 updatedAt: true,
 
-                // Opsional: Hanya ambil Alamat Default (efisiensi data)
                 addresses: {
                     where: {
                         isDefault: true,
-                        // Jika Anda punya deletedAt di UserAddress: deletedAt: null 
                     },
-                    take: 1 // Hanya ambil 1 (yang default)
+                    take: 1 
                 },
             }
         });
@@ -63,11 +57,9 @@ export const getMe = async (req: AuthRequest, res: Response) => {
 };
 
 export const updateProfile = async (req: AuthRequest, res: Response) => {
-    // 1. Validasi Input
     const { error, value } = updateProfileValidation(req.body);
 
     if (error) {
-        // Ambil pesan error pertama dengan fallback message
         const errorMessage = error.details?.[0]?.message || 'Input tidak valid';
         
         logger.error({ validationError: error.details }, 'ERR: user - updateProfile - Validation failed');
@@ -84,7 +76,6 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
     if (!userId) return res.status(401).send({ status: false, message: 'Unauthorized' });
 
     try {
-        // 2. Update dengan teknik spread untuk menghindari 'undefined'
         const updatedUser = await prisma.user.update({
             where: { id: userId },
             data: {
@@ -109,7 +100,6 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         });
 
     } catch (e: any) {
-        // Handle unique constraint pnpm prisma
         if (e.code === 'P2002') {
             return res.status(409).send({
                 status: false,

@@ -6,50 +6,71 @@ import 'dotenv/config';
 
 export const midtransWebhook = async (req: Request, res: Response) => {
     res.setHeader('bypass-tunnel-reminder', 'true');
-    const statusResponse = req.body;
-
-    const orderCode = statusResponse.order_id;
-    const transactionStatus = statusResponse.transaction_status;
-    const fraudStatus = statusResponse.fraud_status;
+    const { order_id: orderCode, transaction_status: transactionStatus, fraud_status: fraudStatus } = req.body;
 
     logger.info({ orderCode, transactionStatus }, "Menerima Notifikasi Midtrans");
 
     try {
-        // Cari order berdasarkan orderCode
+        // 1. Cari order di awal untuk validasi
         const order = await prisma.order.findUnique({
-            where: { orderCode: orderCode }
+            where: { orderCode },
+            select: { id: true, status: true }
         });
 
-        if (!order) {
-            return res.status(404).json({ message: "Order tidak ditemukan" });
-        }
+        if (!order) return res.status(404).json({ message: "Order tidak ditemukan" });
+        
+        // Kalau sudah PAID, langsung kasih OK ke Midtrans supaya tidak kirim ulang
+        if (order.status === "PAID") return res.status(200).send('OK');
 
-        // LOGIC UPDATE STATUS
-        if (transactionStatus === 'settlement' || transactionStatus === 'capture') {
-            if (fraudStatus === 'accept' || !fraudStatus) {
-                // Berhasil Bayar
-                await prisma.order.update({
-                    where: { orderCode: orderCode },
+        // 2. Handle status BERHASIL (settlement/capture)
+        if (transactionStatus === 'settlement' || (transactionStatus === 'capture' && fraudStatus === 'accept')) {
+            
+            await prisma.$transaction(async (tx) => {
+                // Update Status Order ke PAID
+                await tx.order.update({
+                    where: { orderCode },
                     data: { status: "PAID" }
                 });
-                logger.info({ orderCode }, "Status Order diperbarui ke PAID");
-            }
-        } else if (transactionStatus === 'cancel' || transactionStatus === 'deny' || transactionStatus === 'expire') {
-            // Gagal / Expired
+
+                // Ambil Item & Detail Produk
+                const orderItems = await tx.orderItem.findMany({
+                    where: { orderId: order.id },
+                    include: {
+                        variant: { select: { productId: true, qtyMultiplier: true } }
+                    }
+                });
+
+                // Potong Stok Induk di tabel Product
+                for (const item of orderItems) {
+                    const totalReduce = item.quantity * item.variant.qtyMultiplier;
+                    await tx.product.update({
+                        where: { id: item.variant.productId },
+                        data: { qty: { decrement: totalReduce } }
+                    });
+                }
+            });
+
+            logger.info({ orderCode }, "Status PAID & Stok Berhasil Dikurangi");
+
+        } 
+        // 3. Handle status GAGAL/EXPIRED
+        else if (['cancel', 'deny', 'expire'].includes(transactionStatus)) {
             await prisma.order.update({
-                where: { orderCode: orderCode },
+                where: { orderCode },
                 data: { status: "CANCELLED" }
             });
-            logger.info({ orderCode }, "Status Order diperbarui ke CANCELLED");
-        } else if (transactionStatus === 'pending') {
+            logger.info({ orderCode }, "Order dicancel/expired");
+        }
+        // 4. Handle status PENDING
+        else if (transactionStatus === 'pending') {
             await prisma.order.update({
-                where: { orderCode: orderCode },
+                where: { orderCode },
                 data: { status: "PENDING" }
             });
         }
 
-        // Midtrans butuh respon 200 OK supaya berhenti kirim notifikasi
         return res.status(200).send('OK');
+
     } catch (e: any) {
         logger.error({ error: e.message, orderCode }, "ERR: Webhook Midtrans");
         return res.status(500).send("Internal Server Error");

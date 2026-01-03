@@ -3,8 +3,8 @@ import rateLimit from "express-rate-limit";
 
 
 export const authLimiter = rateLimit({
-    windowMs: 5 * 60 * 1000, // 5 menit
-    max: 100, // Maksimal 5 request per IP dalam 5 menit
+    windowMs: 5 * 60 * 1000, 
+    max: 10,
     message: {
         status: false,
         statusCode: 429,

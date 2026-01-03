@@ -27,8 +27,7 @@ export const createAddress = async (req: AuthRequest, res: Response) => {
     const dataWithUser = {
         ...value,
         userId: userId,
-        createdBy: userId,
-    };
+        };
 
     try {
         const newAddress = await prisma.userAddress.create({
