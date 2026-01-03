@@ -231,7 +231,7 @@ model Order {
   netAmount       Int
   status          String   @default("PENDING") // PENDING, PAID, CANCELLED, EXPIRED
   paymentMethod   String?
-  
+  paymentGroupId  String?
   // Field Tambahan untuk Midtrans
   snapToken       String?  @map("snap_token")
   snapRedirectUrl String?  @map("snap_redirect_url")

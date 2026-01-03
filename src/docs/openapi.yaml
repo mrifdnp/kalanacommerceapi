@@ -749,7 +749,7 @@ components:
             
     CheckoutRequest:
       type: object
-      required: [paymentMethod, cartItemIds]
+      required: [cartItemIds]
       properties:
         cartItemIds:
           type: array
@@ -758,8 +758,5 @@ components:
             type: string
             format: uuid
           description: Daftar ID CartItem yang dipilih user untuk di-checkout.
-        paymentMethod:
-          type: string
-          example: QRIS
-          description: Metode pembayaran yang dipilih (e.g., TRANSFER_BANK, GOPAY).
+        
         

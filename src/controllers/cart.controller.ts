@@ -8,7 +8,7 @@ import midtransClient from 'midtrans-client';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
 
 // Asumsi ValidationResult dan JoiError didefinisikan atau diimpor
-type JoiError = any; 
+type JoiError = any;
 type ValidationResult<T> = { error: JoiError | undefined; value: T | undefined; };
 
 export const addItemToCart = async (req: AuthRequest, res: Response) => {
@@ -19,7 +19,7 @@ export const addItemToCart = async (req: AuthRequest, res: Response) => {
     if (error || !value) {
         return res.status(422).send({ status: false, statusCode: 422, message: error?.details[0]?.message, data: {} });
     }
-    
+
     // Ambil productVariantId dari value (Pastikan di Joi sudah diganti juga menjadi productVariantId)
     const { productVariantId, quantity } = value as any;
 
@@ -34,7 +34,7 @@ export const addItemToCart = async (req: AuthRequest, res: Response) => {
             create: { userId: userId },
             select: { id: true },
         });
-        
+
         const cartId = cart.id;
 
         const cartItem = await prisma.cartItem.upsert({
@@ -52,18 +52,18 @@ export const addItemToCart = async (req: AuthRequest, res: Response) => {
                 productVariantId: productVariantId,
                 quantity: quantity,
             },
-            include: { 
-                variant: { 
-                    include: { 
+            include: {
+                variant: {
+                    include: {
                         product: { select: { name: true } },
                         unit: { select: { name: true } }
-                    } 
-                } 
+                    }
+                }
             }
         });
 
         logger.info({ userId, productVariantId, cartId }, `Item variant added/updated in cart.`);
-        
+
         return res.status(200).send({
             status: true,
             statusCode: 200,
@@ -73,14 +73,14 @@ export const addItemToCart = async (req: AuthRequest, res: Response) => {
 
     } catch (e: any) {
         logger.error({ error: e.message, userId, productVariantId }, 'ERR: cart - addItem - Database Error');
-        if (e.code === 'P2003') { 
+        if (e.code === 'P2003') {
             return res.status(404).send({ status: false, statusCode: 404, message: 'Product variant not found.', data: {} });
         }
         return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.', data: {} });
     }
 };
 
-export const getCart = async (req:AuthRequest, res: Response) => {
+export const getCart = async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
 
     if (!userId) {
@@ -118,7 +118,7 @@ export const getCart = async (req:AuthRequest, res: Response) => {
         });
 
         const cartItems = cart?.items || [];
-        
+
         logger.info({ userId, itemCount: cartItems.length }, 'Success retrieved cart items.');
 
         return res.status(200).send({
@@ -139,7 +139,7 @@ export const getCart = async (req:AuthRequest, res: Response) => {
 
 export const updateCartItemQuantity = async (req: AuthRequest, res: Response) => {
     const userId = req.userId;
-    const cartItemId = req.params.id; 
+    const cartItemId = req.params.id;
     const { quantity } = req.body;
 
     if (!cartItemId) {
@@ -159,10 +159,10 @@ export const updateCartItemQuantity = async (req: AuthRequest, res: Response) =>
                 cart: { userId: userId }
             },
             data: { quantity: quantity },
-            include: { 
-                variant: { 
-                    include: { product: { select: { name: true } } } 
-                } 
+            include: {
+                variant: {
+                    include: { product: { select: { name: true } } }
+                }
             }
         });
 
@@ -184,12 +184,12 @@ export const removeCartItem = async (req: AuthRequest, res: Response) => {
     const cartItemId = req.params.id;
 
     if (!userId) { return res.status(401).send({ status: false, statusCode: 401, message: 'User not authenticated.' }); }
-     if (!cartItemId) {
-        return res.status(400).send({ 
-            status: false, 
-            statusCode: 400, 
-            message: 'Cart Id is missing from the request path.', 
-            data: {} 
+    if (!cartItemId) {
+        return res.status(400).send({
+            status: false,
+            statusCode: 400,
+            message: 'Cart Id is missing from the request path.',
+            data: {}
         });
     }
     try {
@@ -223,12 +223,12 @@ export const removeCartItem = async (req: AuthRequest, res: Response) => {
 
 const snap = new midtransClient.Snap({
     isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
-    serverKey: process.env.MIDTRANS_SERVER_KEY 
+    serverKey: process.env.MIDTRANS_SERVER_KEY
 });
 
 export const checkout = async (req: any, res: Response) => {
     const userId = req.userId;
-    
+
     // VALIDASI INPUT (Menggunakan Joi yang kita buat tadi)
     const { error: validationError, value } = checkoutValidation(req.body);
     if (validationError) {
@@ -236,13 +236,13 @@ export const checkout = async (req: any, res: Response) => {
     }
 
     // Pakai value dari Joi agar 'paymentMethod' dianggap terpakai
-    const { cartItemIds, paymentMethod } = value;
+    const { cartItemIds } = value;
 
     try {
         const result = await prisma.$transaction(async (tx) => {
             const cartItems = await tx.cartItem.findMany({
                 where: { id: { in: cartItemIds }, cart: { userId: userId } },
-                include: { 
+                include: {
                     variant: { include: { product: true } },
                     cart: { include: { user: true } }
                 }
@@ -250,6 +250,7 @@ export const checkout = async (req: any, res: Response) => {
 
             if (cartItems.length === 0) throw new Error("Item tidak ditemukan.");
 
+            // 1. Grouping Item per Outlet
             const groupedByOutlet: Record<string, typeof cartItems> = {};
             cartItems.forEach(item => {
                 const oid = item.variant.product.outletId!;
@@ -257,38 +258,45 @@ export const checkout = async (req: any, res: Response) => {
                 groupedByOutlet[oid].push(item);
             });
 
+            // 2. Hitung TOTAL GABUNGAN untuk Midtrans
+            const totalGabungan = cartItems.reduce((acc, item) => acc + (Number(item.variant.price) * item.quantity), 0);
+            const paymentGroupId = `PAY-${Date.now()}`;
+            
+            const customerName = cartItems[0]?.cart?.user?.name || 'Customer';
+            const customerEmail = cartItems[0]?.cart?.user?.email || '';
+
+            // 3. Buat SATU Transaksi Midtrans untuk semua outlet
+            const parameter = {
+                transaction_details: {
+                    order_id: paymentGroupId, // Ini yang dikirim ke Midtrans
+                    gross_amount: totalGabungan
+                },
+                customer_details: {
+                    first_name: customerName,
+                    email: customerEmail,
+                },
+                enabled_payments: ["gopay", "shopeepay", "qris"],
+                expiry: { duration: 5, unit: "minutes" }
+            };
+
+            const midtransTx = await snap.createTransaction(parameter);
+
             const finalOrders = [];
 
+            // 4. Simpan Invoice Terpisah per Outlet (Menggunakan satu Token yang sama)
             for (const [outletId, items] of Object.entries(groupedByOutlet)) {
-                const totalAmount = items.reduce((acc, item) => acc + (Number(item.variant.price) * item.quantity), 0);
-                const orderCode = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-                // Gunakan Optional Chaining (?) untuk menghindari 'possibly undefined'
-                const customerName = cartItems[0]?.cart?.user?.name || 'Customer';
-                const customerEmail = cartItems[0]?.cart?.user?.email || '';
-
-                const parameter = {
-                    transaction_details: {
-                        order_id: orderCode,
-                        gross_amount: totalAmount
-                    },
-                    customer_details: {
-                        first_name: customerName,
-                        email: customerEmail,
-                    },
-                    // enabled_payments: ["qris"]
-                };
-
-                const midtransTx = await snap.createTransaction(parameter);
-
+                const totalPerOutlet = items.reduce((acc, item) => acc + (Number(item.variant.price) * item.quantity), 0);
+                const orderCode = `INV-${outletId.substring(0, 3).toUpperCase()}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                
                 const newOrder = await tx.order.create({
                     data: {
                         userId,
                         outletId,
-                        orderCode,
-                        totalAmount,
-                        netAmount: totalAmount,
-                        paymentMethod: paymentMethod || "MIDTRANS_QRIS", // Sekarang terpakai
+                        orderCode, // Invoice unik per outlet
+                        paymentGroupId, // Pengikat agar Webhook bisa update barengan
+                        totalAmount: totalPerOutlet,
+                        netAmount: totalPerOutlet,
+                        paymentMethod: "MIDTRANS_QRIS",
                         snapToken: midtransTx.token,
                         snapRedirectUrl: midtransTx.redirect_url,
                         items: {
@@ -301,10 +309,10 @@ export const checkout = async (req: any, res: Response) => {
                         }
                     }
                 });
-                
                 finalOrders.push(newOrder);
             }
 
+            // 5. Bersihkan Keranjang
             await tx.cartItem.deleteMany({ where: { id: { in: cartItemIds } } });
 
             return finalOrders;
@@ -312,7 +320,7 @@ export const checkout = async (req: any, res: Response) => {
 
         return res.status(201).json({
             status: true,
-            message: "Pesanan berhasil dibuat. Silakan selesaikan pembayaran.",
+            message: "Pesanan berhasil dibuat.",
             data: result
         });
 

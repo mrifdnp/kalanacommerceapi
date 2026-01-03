@@ -22,16 +22,7 @@ export const checkoutValidation = (payload: unknown) => {
                 'array.base': 'cartItemIds harus berupa array.',
                 'array.min': 'Pilih minimal satu item untuk checkout.',
                 'any.required': 'Daftar item keranjang wajib dikirim.'
-            }),
-
-        // Harus string, contoh: "MIDTRANS_QRIS" atau "GOPAY"
-        paymentMethod: Joi.string()
-            .required()
-            .messages({
-                'string.empty': 'Metode pembayaran tidak boleh kosong.',
-                'any.required': 'Metode pembayaran wajib dipilih.'
-            }),
-            
+            }), 
         // Jika nanti mau nambahin diskon/voucher
         discountAmount: Joi.number().min(0).optional()
     });
