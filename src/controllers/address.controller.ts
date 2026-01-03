@@ -135,7 +135,7 @@ export const updateAddress = async (req: AuthRequest, res: Response) => {
     }
     
     // Tambahkan updatedBy ke data
-    const updateData = { ...value, updatedBy: userId };
+    const updateData = { ...value, };
 
     try {
         const updatedAddress = await prisma.userAddress.update({
@@ -181,8 +181,7 @@ export const deleteAddress = async (req: AuthRequest, res: Response) => {
             data: { 
                 deletedAt: new Date(),
                 updatedAt: new Date(),
-                // updatedBy: userId, // Jika Anda memiliki field updatedBy
-            },
+                   },
         });
 
         logger.info({ addressId: deletedAddress.id, userId }, 'Success delete (soft) address');
