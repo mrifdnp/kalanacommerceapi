@@ -537,25 +537,6 @@ paths:
           description: Kesalahan internal server.
   # --- 5. Order & Transaction ---
   /orders:
-    post:
-      tags:
-        - 5. Order & Transaction
-      summary: Checkout dan Pembuatan Multi-Order
-      description: Mengubah CartItem yang dipilih menjadi satu atau lebih Order (satu Order per Outlet).
-      security:
-        - bearerAuth: [] # ⬅️ Butuh Auth JWT
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CheckoutRequest'
-      responses:
-        '201':
-          description: Checkout berhasil, Array of Orders dikembalikan.
-        '400':
-          description: Stok tidak mencukupi atau Cart Item tidak konsisten.
-          
     get:
       tags:
         - 5. Order & Transaction
