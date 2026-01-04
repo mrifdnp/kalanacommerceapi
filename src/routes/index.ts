@@ -59,5 +59,7 @@ CHANGELOG TERAKHIR:
     app.use((req, res) => {
         res.status(404).send({ status: false, statusCode: 404, message: 'Endpoint not found', data: {} });
     });
+
+    
 }
 

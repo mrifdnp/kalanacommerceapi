@@ -276,7 +276,7 @@ export const checkout = async (req: any, res: Response) => {
                     email: customerEmail,
                 },
                 enabled_payments: ["gopay", "shopeepay", "qris"],
-                expiry: { duration: 5, unit: "minutes" }
+                
             };
 
             const midtransTx = await snap.createTransaction(parameter);
@@ -327,5 +327,137 @@ export const checkout = async (req: any, res: Response) => {
     } catch (e: any) {
         logger.error({ error: e.message, userId }, 'ERR: checkout');
         return res.status(500).json({ status: false, message: e.message });
+    }
+};
+
+export const buyNowCheckout = async (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
+    const { items } = req.body;
+
+    if (!userId) {
+        return res.status(401).send({
+            status: false,
+            statusCode: 401,
+            message: 'Unauthorized'
+        });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+        return res.status(422).send({
+            status: false,
+            statusCode: 422,
+            message: 'Items tidak boleh kosong'
+        });
+    }
+
+    try {
+        const result = await prisma.$transaction(async (tx) => {
+
+            // 1. Ambil semua variant
+            const variantIds = items.map(i => i.productVariantId);
+
+            const variants = await tx.productVariant.findMany({
+                where: { id: { in: variantIds } },
+                include: { product: true }
+            });
+
+            if (variants.length === 0) {
+                throw new Error('Produk tidak ditemukan');
+            }
+
+            const user = await tx.user.findUnique({ where: { id: userId } });
+
+            // 2. Gabungkan data item + variant
+            const enrichedItems = items.map(item => {
+                const variant = variants.find(v => v.id === item.productVariantId);
+                if (!variant) throw new Error('Variant tidak valid');
+
+                return {
+                    variant,
+                    quantity: item.quantity
+                };
+            });
+
+            // 3. Group per outlet
+            const groupedByOutlet: Record<string, typeof enrichedItems> = {};
+            enrichedItems.forEach(item => {
+                const outletId = item.variant.product.outletId!;
+                if (!groupedByOutlet[outletId]) groupedByOutlet[outletId] = [];
+                groupedByOutlet[outletId].push(item);
+            });
+
+            // 4. Hitung total gabungan
+            const totalGabungan = enrichedItems.reduce(
+                (acc, item) => acc + (Number(item.variant.price) * item.quantity),
+                0
+            );
+
+            const paymentGroupId = `BUY-NOW-${Date.now()}`;
+
+            // 5. Midtrans Transaction
+            const midtransTx = await snap.createTransaction({
+                transaction_details: {
+                    order_id: paymentGroupId,
+                    gross_amount: totalGabungan
+                },
+                customer_details: {
+                    first_name: user?.name || 'Customer',
+                    email: user?.email || ''
+                },
+                enabled_payments: ['gopay', 'shopeepay', 'qris']
+            });
+
+            const orders = [];
+
+            // 6. Simpan Order per Outlet
+            for (const [outletId, outletItems] of Object.entries(groupedByOutlet)) {
+
+                const totalPerOutlet = outletItems.reduce(
+                    (acc, item) => acc + (Number(item.variant.price) * item.quantity),
+                    0
+                );
+
+                const orderCode = `INV-BN-${outletId.substring(0, 3).toUpperCase()}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+                const order = await tx.order.create({
+                    data: {
+                        userId,
+                        outletId,
+                        orderCode,
+                        paymentGroupId,
+                        totalAmount: totalPerOutlet,
+                        netAmount: totalPerOutlet,
+                        paymentMethod: 'MIDTRANS_QRIS',
+                        snapToken: midtransTx.token,
+                        snapRedirectUrl: midtransTx.redirect_url,
+                        items: {
+                            create: outletItems.map(item => ({
+                                productVariantId: item.variant.id,
+                                quantity: item.quantity,
+                                priceAtPurchase: item.variant.price,
+                                subtotal: Number(item.variant.price) * item.quantity
+                            }))
+                        }
+                    }
+                });
+
+                orders.push(order);
+            }
+
+            return orders;
+        });
+
+        return res.status(201).json({
+            status: true,
+            message: 'Buy Now checkout berhasil',
+            data: result
+        });
+
+    } catch (e: any) {
+        logger.error({ error: e.message, userId }, 'ERR: buy-now-checkout-multi');
+        return res.status(500).json({
+            status: false,
+            message: e.message
+        });
     }
 };

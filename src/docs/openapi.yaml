@@ -536,6 +536,85 @@ paths:
           description: Validasi gagal (misal cartItemIds kosong).
         '500':
           description: Kesalahan internal server.
+          
+  /carts/checkout/direct:
+    post:
+      tags:
+        - 4. Cart Management
+      summary: Buy Now Checkout (Multi Outlet, tanpa Cart)
+      description: >
+        Checkout langsung tanpa menyimpan item ke cart.
+        Mendukung multi item dan multi outlet dengan satu pembayaran Midtrans.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                      - productVariantId
+                      - quantity
+                    properties:
+                      productVariantId:
+                        type: string
+                        format: uuid
+                        example: "a3f1d7b2-9c4e-4d3f-8b8e-abc123456789"
+                      quantity:
+                        type: integer
+                        minimum: 1
+                        example: 1
+      responses:
+        '201':
+          description: Buy Now checkout berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Buy Now checkout berhasil
+                  data:
+                    type: array
+                    description: Daftar order per outlet
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        orderCode:
+                          type: string
+                          example: INV-BN-OUT-123456
+                        outletId:
+                          type: string
+                          format: uuid
+                        totalAmount:
+                          type: number
+                          example: 50000
+                        snapToken:
+                          type: string
+                        snapRedirectUrl:
+                          type: string
+        '401':
+          description: Unauthorized
+        '422':
+          description: Invalid request body
+        '500':
+          description: Internal server error
   # --- 5. Order & Transaction ---
   /orders:
     get:
@@ -566,6 +645,46 @@ paths:
           description: Detail pesanan berhasil diambil.
         '404':
           description: Order tidak ditemukan atau bukan milik user.
+
+  /chatbot:
+    post:
+      tags:
+        - 6. AI Assistant
+      summary: Chat dengan Asisten AI Toko Kalana (Groq API)
+      description: |
+        AI akan merespon berdasarkan data produk yang tersedia di database. 
+        Jika AI menyarankan pembelian, respon akan mengandung tag `<checkout>` berisi JSON.
+        Dari Json tersebut yang diparsing menjadi Card Product Recommendation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  example: "Saya mau masak sup, ada bahan apa saja?"
+      responses:
+        '200':
+          description: Respon dari AI berhasil didapatkan.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: boolean, example: true }
+                  response: 
+                    type: string
+                    example: "Halo Dani! Anda bisa membuat sup dengan Wortel Brastagi dan Jamur Tiram yang sedang segar. <checkout>[{\"id\": \"uuid-1\", \"qty\": 1}]</checkout>"
+        '401':
+          description: Unauthorized (Token JWT tidak valid atau hilang).
+        '500':
+          description: Kesalahan pada API Groq atau internal server.
 
 
 # ==========================================================

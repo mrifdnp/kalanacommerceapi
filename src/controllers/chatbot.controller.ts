@@ -1,63 +1,98 @@
-import { GoogleGenAI, Chat } from '@google/genai'; // ⬅️ IMPORT TYPE 'Chat'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
 import { logger } from '../utils/logger.js';
-
-
-const ai = new GoogleGenAI({});
-
-
-const userChatSessions = new Map<string, Chat>();
+import { prisma } from '../lib/prisma.js';
 
 export const sendChatMessage = async (req: AuthRequest, res: Response) => {
-    const userId = req.userId; // Dari JWT
     const { message } = req.body;
+    const userId = req.userId; // Ambil userId dari middleware auth
 
     if (!userId) {
-        return res.status(401).send({ status: false, message: 'Unauthorized.' });
+        logger.warn('Chat attempt without userId'); // Log peringatan akses tanpa auth
+        return res.status(401).send({ status: false, statusCode: 401, message: 'Unauthorized.' });
     }
-    if (!message) {
-        return res.status(400).send({ status: false, message: 'Message body is required.' });
-    }
-
-    // 1. Dapatkan atau Buat Sesi Chat
-    let chat = userChatSessions.get(userId);
-
-    if (!chat) {
-        // Jika sesi belum ada, buat sesi baru
-        chat = ai.chats.create({
-            model: "gemini-2.5-flash",
-            config: {
-                systemInstruction: `Anda adalah Chatbot layanan pelanggan, jangan jawab dengan tanda baca ...`
-            }
-        });
-        userChatSessions.set(userId, chat);
-    }
-
     try {
-        // 2. Kirim Pesan ke Sesi Chat
-        const response = await chat.sendMessage({ message });
-        const textResponse = response.text;
+        // 1. Ambil data user agar AI tahu siapa yang sedang bicara
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { name: true }
+        });
 
-        logger.info({ userId, prompt: message }, 'Chatbot success response.');
+        // 2. Ambil data produk dari Prisma
+        const allProducts = await prisma.product.findMany({
+            where: { deletedAt: null },
+            include: { variants: true, category: true }
+        });
+
+        const productContext = allProducts.map(p =>
+            `- ${p.name} (${p.category?.name}): ${p.variants.map(v => v.price).join('/')}`
+        ).join('\n');
+
+        const userName = user?.name || 'Pelanggan'; // Fallback jika nama tidak ada
+
+        logger.info({ userId, userName, messageLength: message?.length }, 'Sending request to Groq API');
+       const startTime = Date.now();
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    {
+                        role: "system",
+                        // Tambahkan instruksi agar AI menyapa nama user
+                        content: `Anda pelayan ramah di Toko Kalana. 
+                        Anda sedang berbicara dengan: ${userName}. 
+                        Waktu sekarang: ${new Date().toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })}. 
+                        Selalu sapa user dengan namanya jika sopan.
+                        
+                        Daftar Produk:\n${productContext}
+                        ugas Anda:
+1. Jawab pertanyaan dengan ramah.
+2. Jika user ingin membeli/memesan, identifikasi produk dan jumlahnya.
+3. DI AKHIR JAWABAN, selalu sertakan format JSON khusus di dalam tag <checkout> jika ada produk yang ingin dibeli, contoh:
+   <checkout>
+   [{"id": "uuid-produk-1", "qty": 2}, {"id": "uuid-produk-2", "qty": 1}]
+   </checkout>
+
+Daftar Produk (Gunakan ID ini untuk JSON):\n${allProducts.map(p => `- ID: ${p.id} | Nama: ${p.name} | Harga: ${p.variants[0]?.price}`).join('\n')}`
+
+                    },
+                    { role: "user", content: message }
+                ]
+            })
+        });
+
+        const data = await response.json() as any;
+        const duration = Date.now() - startTime; // Hitung durasi respon
+
+        if (data.error) {
+            logger.error({ error: data.error, userId }, 'Groq API returned an error');
+            throw new Error(data.error.message);
+        }
+
+        logger.info({
+            userId,
+            duration: `${duration}ms`,
+            promptTokens: data.usage?.prompt_tokens,
+            completionTokens: data.usage?.completion_tokens,
+            totalTokens: data.usage?.total_tokens
+        }, 'Groq API success response');
 
         return res.status(200).send({
             status: true,
-            response: textResponse,
-            history: await chat.getHistory(), 
+            response: data.choices[0].message.content,
         });
-
-   } catch (e: unknown) { // ⬅️ Ganti :any menjadi :unknown
-        // 1. Lakukan Type Narrowing untuk memastikan 'e' adalah Error
-        const errorMessage = (e instanceof Error) ? e.message : 'Unknown Gemini API error.';
-
-        logger.error({ error: errorMessage, userId }, 'ERR: chatbot - send message');
-        
-        // Cek jika error spesifik dari Gemini
-        if (errorMessage.includes('API key')) {
-             return res.status(500).send({ status: false, message: 'Server configuration error (API Key).' });
-        }
-        
-        return res.status(500).send({ status: false, message: 'Gagal menghubungi Gemini API.' });
+    } catch (e: any) {
+        logger.error({ 
+            error: e.message, 
+            userId, 
+            stack: e.stack 
+        }, 'ERR: groq-chatbot-critical');
+        return res.status(500).send({ status: false, message: 'Groq sedang istirahat.' });
     }
 };

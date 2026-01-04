@@ -6,6 +6,6 @@ const app:Application = express();
 app.set('trust proxy', 1);
 app.use(favicon(path.join(process.cwd(), 'public', 'favicon.png')));
 
-
+app.use(express.static('public'));
 
 export default app;
