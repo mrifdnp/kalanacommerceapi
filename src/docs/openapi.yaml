@@ -650,7 +650,7 @@ paths:
     post:
       tags:
         - 6. AI Assistant
-      summary: Chat dengan Asisten AI Toko Kalana (Groq API)
+      summary: Chat dengan Asisten AI Toko Kalana 
       description: |
         AI akan merespon berdasarkan data produk yang tersedia di database. 
         Jika AI menyarankan pembelian, respon akan mengandung tag `<checkout>` berisi JSON.
