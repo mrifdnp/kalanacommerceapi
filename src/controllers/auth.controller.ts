@@ -9,11 +9,11 @@ import jwt from 'jsonwebtoken';
 
 // Konfigurasi transporter khusus Google
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
 });
 
 // src/controllers/auth.controller.ts
@@ -23,7 +23,7 @@ interface RegisterInput {
     password: string;
     phoneNumber: string;
 }
- 
+
 interface LoginInput {
     email: string;
     password: string;
@@ -32,7 +32,7 @@ interface LoginInput {
 
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key';
-const TOKEN_EXPIRES_IN = '1d';
+const TOKEN_EXPIRES_IN = '30d';
 
 
 export const registerUser = async (req: Request, res: Response) => {
@@ -132,7 +132,7 @@ export const loginUser = async (req: Request, res: Response) => {
             return res.status(401).send({ status: false, statusCode: 401, message: 'Invalid credentials.', data: {} });
         }
 
-        // 3. Buat Payload JWT (data yang akan disimpan di token)
+
         const tokenPayload = {
             id: user.id,
             email: user.email,
@@ -140,14 +140,14 @@ export const loginUser = async (req: Request, res: Response) => {
 
         };
 
-        // 4. Buat Token
+
         const token = jwt.sign(
             tokenPayload,
             JWT_SECRET,
             { expiresIn: TOKEN_EXPIRES_IN }
         );
 
-        // 5. Respon Sukses
+
         logger.info({ userId: user.id }, 'User logged in successfully');
         return res.status(200).send({
             status: true,
@@ -159,14 +159,20 @@ export const loginUser = async (req: Request, res: Response) => {
                     id: user.id,
                     name: user.name,
                     email: user.email,
-                    // Jangan kembalikan password yang di-hash
+
                 }
             }
         });
 
     } catch (e: any) {
-        logger.error({ error: e.message, body: req.body }, 'ERR: user - login - General Error');
-        return res.status(500).send({ status: false, statusCode: 500, message: 'Internal server error.', data: {} });
+        logger.error({ error: e.message, body: req.body },
+            'ERR: user - login - General Error');
+        return res.status(500).send({
+            status: false,
+            statusCode: 500,
+            message: 'Internal server error.',
+            data: {}
+        });
     }
 };
 
