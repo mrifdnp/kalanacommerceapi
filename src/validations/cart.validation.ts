@@ -1,8 +1,7 @@
 import Joi from 'joi';
 
 const addCartItemSchema = Joi.object({
-    productVariantId: Joi.string().uuid().required().messages({
-        
+    productVariantId: Joi.string().required().messages({
         'any.required': 'ID Varian Produk wajib diisi.'
     }),
     quantity: Joi.number().integer().min(1).required().messages({
