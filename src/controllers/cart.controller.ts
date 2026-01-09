@@ -275,7 +275,7 @@ export const checkout = async (req: any, res: Response) => {
                     first_name: customerName,
                     email: customerEmail,
                 },
-                enabled_payments: ["gopay", "shopeepay", "qris"],
+                
                 
             };
 
@@ -296,7 +296,7 @@ export const checkout = async (req: any, res: Response) => {
                         paymentGroupId, // Pengikat agar Webhook bisa update barengan
                         totalAmount: totalPerOutlet,
                         netAmount: totalPerOutlet,
-                        paymentMethod: "MIDTRANS_QRIS",
+                        paymentMethod: "MIDTRANS_ALL",
                         snapToken: midtransTx.token,
                         snapRedirectUrl: midtransTx.redirect_url,
                         items: {
