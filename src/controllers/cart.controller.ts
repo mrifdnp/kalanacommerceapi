@@ -99,13 +99,24 @@ export const getCart = async (req: AuthRequest, res: Response) => {
                             select: {
                                 id: true,
                                 variantName: true,
-                                price: true,
+                                price: true,        
+                                originalPrice: true,
                                 product: {
                                     select: {
                                         id: true,
                                         name: true,
                                         productCode: true,
                                         image: true,
+                                        freshnessLevel: true,
+                                        outlet: {
+                                            select: {
+                                                id: true,
+                                                name: true,
+                                                citiesId: true, // Untuk info lokasi pengiriman di UI
+                                                lat: true,
+                                                long: true
+                                            }
+                                        },
                                     }
                                 },
                                 unit: { select: { name: true } }
