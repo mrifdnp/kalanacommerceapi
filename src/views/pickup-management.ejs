@@ -3,44 +3,74 @@
 <head>
     <title>Kalana Admin - Pickup Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Animasi untuk Toast Notification */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+    </style>
 </head>
-<body class="bg-gray-100 p-8">
-    <div class="max-w-6xl mx-auto">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6">Manajemen Pickup Pesanan</h1>
+<body class="bg-gray-50 text-gray-800 p-6 md:p-10 relative">
+
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <div class="max-w-7xl mx-auto">
+        <div class="flex items-center justify-between mb-8">
+            <h1 class="text-2xl font-bold text-gray-900">Manajemen Pickup</h1>
+            <button onclick="window.location.reload()" class="text-sm text-indigo-600 hover:text-indigo-800">
+                Refresh Page
+            </button>
+        </div>
         
-        <div class="bg-white shadow-md rounded-lg overflow-hidden">
-            <table class="min-w-full leading-normal">
+        <div class="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
+            <table class="min-w-full whitespace-nowrap">
                 <thead>
-                    <tr class="bg-indigo-600 text-white">
-                        <th class="px-5 py-3 border-b text-left text-xs font-semibold uppercase tracking-wider">Order Code</th>
-                        <th class="px-5 py-3 border-b text-left text-xs font-semibold uppercase tracking-wider">Pelanggan</th>
-                        <th class="px-5 py-3 border-b text-left text-xs font-semibold uppercase tracking-wider">Jumlah Item</th>
-                        <th class="px-5 py-3 border-b text-left text-xs font-semibold uppercase tracking-wider">Status Pickup</th>
-                        <th class="px-5 py-3 border-b text-left text-xs font-semibold uppercase tracking-wider">Aksi</th>
+                    <tr class="bg-gray-50 text-left">
+                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Order Code</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Pelanggan</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Aksi</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <% orders.forEach(order => { %>
+                <tbody class="divide-y divide-gray-100">
+                    <% orders.forEach(order => { 
+                        // Setup warna awal server-side
+                        let badgeClass = 'bg-gray-100 text-gray-600 border-gray-200';
+                        let dotClass = 'bg-gray-500';
+                        if (order.statusPickup === 'READY') { badgeClass = 'bg-green-50 text-green-700 border-green-200'; dotClass = 'bg-green-500'; }
+                        else if (order.statusPickup === 'PROCESS') { badgeClass = 'bg-blue-50 text-blue-700 border-blue-200'; dotClass = 'bg-blue-500'; }
+                        else if (order.statusPickup === 'CANCELLED') { badgeClass = 'bg-red-50 text-red-700 border-red-200'; dotClass = 'bg-red-500'; }
+                    %>
                     <tr class="hover:bg-gray-50 transition">
-                        <td class="px-5 py-5 border-b text-sm font-bold"><%= order.orderCode %></td>
-                        <td class="px-5 py-5 border-b text-sm"><%= order.user.name %></td>
-                        <td class="px-5 py-5 border-b text-sm"><%= order._count.items %> Item</td>
-                        <td class="px-5 py-5 border-b text-sm">
-                            <span class="px-3 py-1 rounded-full text-xs font-bold 
-                                <%= order.statusPickup === 'READY' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' %>">
-                                <%= order.statusPickup %>
+                        <td class="px-6 py-4 font-mono text-sm text-indigo-600">#<%= order.orderCode %></td>
+                        <td class="px-6 py-4 text-sm font-medium"><%= order.user.name %></td>
+
+                        <td class="px-6 py-4">
+                            <span id="badge-<%= order.id %>" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border <%= badgeClass %>">
+                                <span id="dot-<%= order.id %>" class="w-1.5 h-1.5 rounded-full <%= dotClass %>"></span>
+                                <span id="text-<%= order.id %>"><%= order.statusPickup %></span>
                             </span>
                         </td>
-                        <td class="px-5 py-5 border-b text-sm">
-                            <form action="/api/orders/admin/pickup/update" method="POST" class="flex items-center gap-2">
-                                <input type="hidden" name="orderId" value="<%= order.id %>">
-                                <select name="status" class="border rounded px-2 py-1 text-sm">
-                                    <option value="PROCESS" <%= order.statusPickup === 'PROCESS' ? 'selected' : '' %>>PROCESS</option>
-                                    <option value="READY" <%= order.statusPickup === 'READY' ? 'selected' : '' %>>READY</option>
-                                    <option value="PICKED_UP" <%= order.statusPickup === 'PICKED_UP' ? 'selected' : '' %>>PICKED_UP</option>
-                                    <option value="CANCELLED" <%= order.statusPickup === 'CANCELLED' ? 'selected' : '' %>>CANCELLED</option>
-                                </select>
-                                <button type="submit" class="bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600">Update</button>
+
+                        <td class="px-6 py-4">
+                            <form onsubmit="updateOrder(event, '<%= order.id %>')" class="flex items-center gap-3">
+                                
+                                <div class="relative">
+                                    <select id="select-<%= order.id %>" class="appearance-none bg-white border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-indigo-500 block w-full pl-3 pr-8 py-2 cursor-pointer transition">
+                                        <option value="PROCESS" <%= order.statusPickup === 'PROCESS' ? 'selected' : '' %>>PROCESS</option>
+                                        <option value="READY" <%= order.statusPickup === 'READY' ? 'selected' : '' %>>READY</option>
+                                        <option value="PICKED_UP" <%= order.statusPickup === 'PICKED_UP' ? 'selected' : '' %>>PICKED_UP</option>
+                                        <option value="CANCELLED" <%= order.statusPickup === 'CANCELLED' ? 'selected' : '' %>>CANCELLED</option>
+                                    </select>
+                                </div>
+
+                                <button type="submit" class="bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-600 hover:text-white p-2 rounded-lg transition shadow-sm">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                </button>
                             </form>
                         </td>
                     </tr>
@@ -49,5 +79,109 @@
             </table>
         </div>
     </div>
+
+    <script>
+        async function updateOrder(event, orderId) {
+            // 1. Mencegah reload halaman
+            event.preventDefault();
+
+            // 2. Ambil value baru dari dropdown
+            const selectElement = document.getElementById(`select-${orderId}`);
+            const newStatus = selectElement.value;
+            const button = event.target.querySelector('button');
+
+            // Visual feedback (Loading state)
+            const originalBtnContent = button.innerHTML;
+            button.innerHTML = '<svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+            button.disabled = true;
+
+            try {
+                // 3. Kirim data ke Backend (Fetch)
+                const response = await fetch('/api/orders/admin/pickup/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        orderId: orderId,
+                        status: newStatus
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // 4. Sukses: Update Tampilan Badge secara langsung (DOM Manipulation)
+                    updateBadgeUI(orderId, newStatus);
+                    showToast('Sukses!', 'Status berhasil diperbarui.', 'success');
+                } else {
+                    throw new Error(result.message || 'Gagal update');
+                }
+
+            } catch (error) {
+                console.error(error);
+                showToast('Error', 'Gagal update status server.', 'error');
+            } finally {
+                // Restore tombol
+                button.innerHTML = originalBtnContent;
+                button.disabled = false;
+            }
+        }
+
+        // Fungsi Update Warna Badge Tanpa Reload
+        function updateBadgeUI(id, status) {
+            const badge = document.getElementById(`badge-${id}`);
+            const dot = document.getElementById(`dot-${id}`);
+            const text = document.getElementById(`text-${id}`);
+
+            // Reset class dasar
+            badge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-colors duration-300';
+            dot.className = 'w-1.5 h-1.5 rounded-full';
+            
+            // Set Text
+            text.innerText = status;
+
+            // Set Warna Baru
+            if (status === 'READY') {
+                badge.classList.add('bg-green-50', 'text-green-700', 'border-green-200');
+                dot.classList.add('bg-green-500');
+            } else if (status === 'PROCESS') {
+                badge.classList.add('bg-blue-50', 'text-blue-700', 'border-blue-200');
+                dot.classList.add('bg-blue-500');
+            } else if (status === 'CANCELLED') {
+                badge.classList.add('bg-red-50', 'text-red-700', 'border-red-200');
+                dot.classList.add('bg-red-500');
+            } else {
+                badge.classList.add('bg-gray-100', 'text-gray-600', 'border-gray-200');
+                dot.classList.add('bg-gray-500');
+            }
+        }
+
+        // Fungsi Menampilkan Notifikasi Pojok Kanan
+        function showToast(title, message, type) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const colorClass = type === 'success' ? 'border-green-500 bg-green-50 text-green-800' : 'border-red-500 bg-red-50 text-red-800';
+            
+            toast.className = `p-4 rounded shadow-lg border-l-4 ${colorClass} toast-enter min-w-[300px] flex justify-between items-center bg-white`;
+            toast.innerHTML = `
+                <div>
+                    <h4 class="font-bold text-sm">${title}</h4>
+                    <p class="text-xs mt-1 opacity-90">${message}</p>
+                </div>
+            `;
+
+            container.appendChild(toast);
+
+            // Hilangkan otomatis setelah 3 detik
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
 </body>
 </html>
