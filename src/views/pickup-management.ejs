@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>Kalana Admin - Pickup Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Manajemen Pickup Pesanan</h1>
+        
+        <div class="bg-white shadow-md rounded-lg overflow-hidden">
+            <table class="min-w-full leading-normal">
+                <thead>
+                    <tr class="bg-indigo-600 text-white">
+                        <th class="px-5 py-3 border-b text-left text-xs font-semibold uppercase tracking-wider">Order Code</th>
+                        <th class="px-5 py-3 border-b text-left text-xs font-semibold uppercase tracking-wider">Pelanggan</th>
+                        <th class="px-5 py-3 border-b text-left text-xs font-semibold uppercase tracking-wider">Jumlah Item</th>
+                        <th class="px-5 py-3 border-b text-left text-xs font-semibold uppercase tracking-wider">Status Pickup</th>
+                        <th class="px-5 py-3 border-b text-left text-xs font-semibold uppercase tracking-wider">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% orders.forEach(order => { %>
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-5 py-5 border-b text-sm font-bold"><%= order.orderCode %></td>
+                        <td class="px-5 py-5 border-b text-sm"><%= order.user.name %></td>
+                        <td class="px-5 py-5 border-b text-sm"><%= order._count.items %> Item</td>
+                        <td class="px-5 py-5 border-b text-sm">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold 
+                                <%= order.statusPickup === 'READY' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' %>">
+                                <%= order.statusPickup %>
+                            </span>
+                        </td>
+                        <td class="px-5 py-5 border-b text-sm">
+                            <form action="/api/orders/admin/pickup/update" method="POST" class="flex items-center gap-2">
+                                <input type="hidden" name="orderId" value="<%= order.id %>">
+                                <select name="status" class="border rounded px-2 py-1 text-sm">
+                                    <option value="PROCESS" <%= order.statusPickup === 'PROCESS' ? 'selected' : '' %>>PROCESS</option>
+                                    <option value="READY" <%= order.statusPickup === 'READY' ? 'selected' : '' %>>READY</option>
+                                    <option value="PICKED_UP" <%= order.statusPickup === 'PICKED_UP' ? 'selected' : '' %>>PICKED_UP</option>
+                                    <option value="CANCELLED" <%= order.statusPickup === 'CANCELLED' ? 'selected' : '' %>>CANCELLED</option>
+                                </select>
+                                <button type="submit" class="bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-600">Update</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

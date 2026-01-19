@@ -141,3 +141,20 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response): Promis
         });
     }
 };
+
+export const renderPickupPage = async ( req: unknown ,res: Response) => {
+    try {
+        const orders = await prisma.order.findMany({
+            include: {
+                user: { select: { name: true } },
+                _count: { select: { items: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        // Render file EJS (views/pickup-management.ejs)
+        res.render('pickup-management', { orders });
+    } catch (e) {
+        res.status(500).send(e as Error | "Gagal memuat halaman pickup.");
+    }
+};
