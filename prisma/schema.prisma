@@ -236,6 +236,7 @@ model Order {
   // Field Tambahan untuk Midtrans
   snapToken       String? @map("snap_token")
   snapRedirectUrl String? @map("snap_redirect_url")
+  statusPickup     PickupStatus1? @default(PROCESS) @map("status_pickup")
 
   user   User        @relation(fields: [userId], references: [id])
   outlet Outlet      @relation(fields: [outletId], references: [id])
@@ -254,6 +255,13 @@ enum PickupStatus {
   COMPLETED
   CANCELLED
 }
+enum PickupStatus1 {
+  PROCESS
+  READY
+  PICKED_UP
+  CANCELLED
+}
+
 
 model OrderItem {
   id               String         @id @default(uuid())
@@ -262,7 +270,6 @@ model OrderItem {
   quantity         Int
   priceAtPurchase  Decimal        @db.Decimal(10, 2)
   subtotal         Decimal        @db.Decimal(10, 2)
-  pickupStatus     PickupStatus   @default(WAITING_DRIVER)
   order            Order          @relation(fields: [orderId], references: [id])
   variant          ProductVariant @relation(fields: [productVariantId], references: [id])
 

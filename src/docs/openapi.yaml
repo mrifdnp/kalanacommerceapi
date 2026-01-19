@@ -645,6 +645,42 @@ paths:
           description: Detail pesanan berhasil diambil.
         '404':
           description: Order tidak ditemukan atau bukan milik user.
+  
+  /orders/item/status:
+    patch:
+      tags:
+        - 5. Order & Transaction
+      summary: Memperbarui Status Pickup Per Item (OrderItem)
+      description: Mengubah status operasional item tertentu (PROCESS, READY, PICKED_UP, CANCELLED).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - orderItemId
+                - status
+              properties:
+                orderItemId:
+                  type: string
+                  format: uuid
+                  example: "550e8400-e29b-41d4-a716-446655440000"
+                status:
+                  type: string
+                  enum: [PROCESS, READY, PICKED_UP, CANCELLED]
+                  example: "READY"
+      responses:
+        '200':
+          description: Status item berhasil diperbarui.
+        '400':
+          description: Input tidak valid atau ID item tidak ditemukan.
+        '401':
+          description: Token tidak valid atau user tidak terautentikasi.
+        '500':
+          description: Kesalahan internal server.
 
   /chatbot:
     post:
