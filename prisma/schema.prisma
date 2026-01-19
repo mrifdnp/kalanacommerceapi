@@ -16,55 +16,56 @@ datasource db {
 model User {
   id String @id @default(uuid()) @db.Uuid
 
-  name     String
-  email    String @unique
-  password String
-  phoneNumber String?   @unique @map("phone_number")
-  balance Decimal @default(0.00) @db.Decimal(12, 2)
-  addresses UserAddress[]
-  outlets Outlet[]
-  cart    Cart?
-  orders  Order[]
+  name        String
+  email       String        @unique
+  password    String
+  phoneNumber String?       @unique @map("phone_number")
+  balance     Decimal       @default(0.00) @db.Decimal(12, 2)
+  addresses   UserAddress[]
+  outlets     Outlet[]
+  cart        Cart?
+  orders      Order[]
   image       String?
-  
+
   createdBy String?
   deletedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  resetToken       String?
+  resetToken        String?
   resetTokenExpires DateTime?
 
   @@map("user")
 }
+
 model UserAddress {
-  id String @id @default(uuid())
+  id     String @id @default(uuid())
   userId String @map("user_id") @db.Uuid // Kunci asing ke User
 
   // Konten Alamat
-  label String // Contoh: "Rumah", "Kantor", "Ibu"
+  label         String // Contoh: "Rumah", "Kantor", "Ibu"
   recipientName String @map("recipient_name")
-  phoneNumber String @map("phone_number") // Nomor kontak di alamat tersebut
-  street String
-  postalCode String @map("postal_code")
-  
+  phoneNumber   String @map("phone_number") // Nomor kontak di alamat tersebut
+  street        String
+  postalCode    String @map("postal_code")
+
   // Data Lokasi
   provincesId String
-  citiesId String
+  citiesId    String
   districtsId String
   deletedAt   DateTime?
   // Lokasi GPS (opsional, tapi berguna)
-  long Decimal? @db.Decimal(10, 7)
-  lat Decimal? @db.Decimal(10, 7)
+  long        Decimal?  @db.Decimal(10, 7)
+  lat         Decimal?  @db.Decimal(10, 7)
 
   isDefault Boolean @default(false) @map("is_default") // Apakah ini alamat utama?
 
   // Relasi
   user User @relation(fields: [userId], references: [id])
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@map("user_address")
 }
 
@@ -115,12 +116,12 @@ model Category {
 
 // --- 4. MODEL MASTER: Unit ---
 model Unit {
-  id          String    @id @default(uuid())
-  outletId    String?
-  name        String
+  id       String           @id @default(uuid())
+  outletId String?
+  name     String
   variants ProductVariant[]
-  products    Product[]
-  outlet      Outlet?   @relation(fields: [outletId], references: [id])
+  products Product[]
+  outlet   Outlet?          @relation(fields: [outletId], references: [id])
 
   // Kolom Audit
   createdBy String?
@@ -223,39 +224,47 @@ model CartItem {
 }
 
 model Order {
-  id              String   @id @default(uuid())
-  userId          String   @map("user_id") @db.Uuid
-  outletId        String   @map("outlet_id")
-  orderCode       String   @unique
+  id              String  @id @default(uuid())
+  userId          String  @map("user_id") @db.Uuid
+  outletId        String  @map("outlet_id")
+  orderCode       String  @unique
   totalAmount     Int
   netAmount       Int
-  status          String   @default("PENDING") // PENDING, PAID, CANCELLED, EXPIRED
+  status          String  @default("PENDING") // PENDING, PAID, CANCELLED, EXPIRED
   paymentMethod   String?
   paymentGroupId  String?
   // Field Tambahan untuk Midtrans
-  snapToken       String?  @map("snap_token")
-  snapRedirectUrl String?  @map("snap_redirect_url")
+  snapToken       String? @map("snap_token")
+  snapRedirectUrl String? @map("snap_redirect_url")
 
-  user    User        @relation(fields: [userId], references: [id])
-  outlet  Outlet      @relation(fields: [outletId], references: [id])
-  items   OrderItem[]
-  
+  user   User        @relation(fields: [userId], references: [id])
+  outlet Outlet      @relation(fields: [outletId], references: [id])
+  items  OrderItem[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("order")
 }
 
-model OrderItem {
-  id               String @id @default(uuid())
-  orderId          String @map("order_id")
-  productVariantId String @map("product_variant_id") 
-  quantity        Int
-  priceAtPurchase Decimal @db.Decimal(10, 2)
-  subtotal        Decimal @db.Decimal(10, 2)
+enum PickupStatus {
+  WAITING_DRIVER
+  PICKUP
+  DELIVERING
+  COMPLETED
+  CANCELLED
+}
 
-  order   Order          @relation(fields: [orderId], references: [id])
-  variant ProductVariant @relation(fields: [productVariantId], references: [id])
+model OrderItem {
+  id               String         @id @default(uuid())
+  orderId          String         @map("order_id")
+  productVariantId String         @map("product_variant_id")
+  quantity         Int
+  priceAtPurchase  Decimal        @db.Decimal(10, 2)
+  subtotal         Decimal        @db.Decimal(10, 2)
+  pickupStatus     PickupStatus   @default(WAITING_DRIVER)
+  order            Order          @relation(fields: [orderId], references: [id])
+  variant          ProductVariant @relation(fields: [productVariantId], references: [id])
 
   createdAt DateTime @default(now())
 
