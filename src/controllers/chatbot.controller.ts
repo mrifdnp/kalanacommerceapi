@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Response } from 'express';
+import {Request, Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
 import { logger } from '../utils/logger.js';
 import { prisma } from '../lib/prisma.js';
@@ -92,5 +92,84 @@ Daftar Produk (Gunakan ID ini untuk JSON):\n${allProducts.map(p => `- ID: ${p.id
             stack: e.stack
         }, 'ERR: groq-chatbot-critical');
         return res.status(500).send({ status: false, message: 'Groq sedang istirahat.' });
+    }
+};
+
+export const sendChatTrial = async (req: Request, res: Response) => {
+    // Ambil pesan dari body request
+    const { message } = req.body;
+
+    try {
+        // 1. Hardcode nama tamu
+        const userName = 'Kakak'; 
+
+        // 2. Ambil Data Produk (Tetap perlu supaya AI tahu stok)
+        const allProducts = await prisma.product.findMany({
+            where: { deletedAt: null },
+            include: { variants: true, category: true }
+        });
+
+        // Format data produk menjadi string untuk konteks AI
+        const productContext = allProducts.map(p =>
+            `- ${p.name} (${p.category?.name}): ${p.variants.map(v => v.price).join('/')}`
+        ).join('\n');
+
+        // 3. Log request
+        logger.info({ role: 'Guest', messageLength: message?.length }, 'Groq Trial Request');
+
+        // 4. Kirim ke Groq AI
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    {
+                        role: "system",
+                        // FIX ESLint: userName digunakan di sini ("${userName}")
+                        content: `Anda asisten virtual Toko Kalana. 
+                        User ini adalah TAMU (Guest). Sapa dengan panggilan "${userName}".
+                        
+                        Daftar Produk:\n${productContext}
+                        
+                        Tugas:
+                        1. Jawab pertanyaan singkat & ramah.
+                        2. Dorong user untuk LOGIN/DAFTAR di akhir percakapan jika mereka ingin checkout.
+                        3. JANGAN berikan tag <checkout> json, karena tamu tidak bisa checkout langsung. 
+                           Ganti dengan: "Silakan login untuk memproses pesanan ini ya, ${userName}! 😊"`
+                    },
+                    { role: "user", content: message }
+                ]
+            })
+        });
+
+        // FIX TypeScript: Parse JSON dulu sebelum akses properti data
+        // Menggunakan 'as any' untuk menghindari error strict typing pada response eksternal
+        const data = await response.json() as any;
+        
+        // Cek jika API Groq mengembalikan error
+        if (data.error) {
+            // Sekarang aman mengakses data.error.message karena sudah diparsing
+            throw new Error(data.error.message);
+        }
+
+        return res.status(200).send({
+            status: true,
+            response: data.choices[0].message.content,
+        });
+
+    } catch (e: any) {
+        logger.error({ 
+            error: e.message, 
+            stack: e.stack 
+        }, 'ERR: groq-trial');
+        
+        return res.status(500).send({ 
+            status: false, 
+            message: 'Maaf, AI sedang sibuk atau terjadi kesalahan jaringan.' 
+        });
     }
 };
